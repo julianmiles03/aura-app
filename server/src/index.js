@@ -35,5 +35,5 @@ app.use('/api', (req) => {
 });
 app.use(errorHandler);
 
-const port = Number(process.env.PORT) || 4000;
+const port = Number(process.env.API_PORT) || 4000;
 app.listen(port, () => console.log(`aura API listening on http://localhost:${port}`));

@@ -91,6 +91,17 @@ async function addMember(group, userId) {
       [group.id, userId],
     );
     if (!rows.length) throw conflict('ALREADY_MEMBER', `Already a member of ${group.name}.`);
+    // A match's chat holds both groups' members, so new members join the group's chats too
+    // (skipping any chat that's already at the 30-person cap).
+    await client.query(
+      `INSERT INTO chat_participants (chat_id, user_id, group_id)
+       SELECT c.id, $2, $1
+       FROM chats c JOIN group_matches mt ON mt.id = c.match_id
+       WHERE $1 IN (mt.group_low_id, mt.group_high_id)
+         AND (SELECT count(*) FROM chat_participants x WHERE x.chat_id = c.id) < 30
+       ON CONFLICT (chat_id, user_id) DO NOTHING`,
+      [group.id, userId],
+    );
     // Someone with no group yet gets this one as their active group.
     await client.query(
       'UPDATE users SET active_group_id = $2 WHERE id = $1 AND active_group_id IS NULL',
@@ -105,6 +116,7 @@ router.delete('/groups/:id/members/me', async (req, res) => {
   await withTransaction(async (client) => {
     // If this was the active group, the FK clears active_group_id; then fall back to another group.
     await client.query('DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2', [groupId, req.user.id]);
+    await client.query('DELETE FROM chat_participants WHERE group_id = $1 AND user_id = $2', [groupId, req.user.id]);
     await client.query(
       `UPDATE users SET active_group_id = (
          SELECT group_id FROM group_memberships WHERE user_id = $1 ORDER BY joined_at LIMIT 1)

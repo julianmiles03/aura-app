@@ -3,9 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "description": "Team Aura: help friend groups find and meet other friend groups",
-  "workspaces": ["server"],
-  "engines": { "node": ">=20" },
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "db:reset": "npm run db:reset --workspace server"
+    "dev": "concurrently -k -n api,web -c magenta,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "db:reset": "npm run db:reset -w server",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
   }
 }

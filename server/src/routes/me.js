@@ -12,8 +12,8 @@ const router = Router();
 export const RELATIONSHIP_STATUSES = ['single', 'in_a_relationship', 'married', 'its_complicated', 'prefer_not_to_say'];
 
 export async function loadMe(userId) {
-  const { rows: [u] } = await query('SELECT * FROM users WHERE id = $1', [userId]);
-  const [photos, interests, memberships, onboarding] = await Promise.all([
+  const [{ rows: [u] }, photos, interests, memberships, onboarding] = await Promise.all([
+    query('SELECT * FROM users WHERE id = $1', [userId]),
     query('SELECT id, position, label, image_url FROM user_photos WHERE user_id = $1 ORDER BY position', [userId]),
     query(
       `SELECT i.id, i.name FROM user_interests ui JOIN interests i ON i.id = ui.interest_id
@@ -25,16 +25,14 @@ export async function loadMe(userId) {
   ]);
 
   const roles = new Map(memberships.rows.map((m) => [m.group_id, m.role]));
-  const cards = await loadGroupCards(pool, [...roles.keys()], { includeInviteCode: true });
+  const [cards, chats] = await Promise.all([
+    loadGroupCards(pool, [...roles.keys()], { includeInviteCode: true }),
+    u.active_group_id ? loadChatRows(pool, userId, u.active_group_id) : [],
+  ]);
   const groups = cards
     .map((card) => ({ ...card, role: roles.get(card.id), isActive: card.id === u.active_group_id }))
     .sort((a, b) => Number(b.isActive) - Number(a.isActive));
-
-  let unreadMessages = 0;
-  if (u.active_group_id) {
-    const chats = await loadChatRows(pool, userId, u.active_group_id);
-    unreadMessages = chats.reduce((sum, c) => sum + c.unreadCount, 0);
-  }
+  const unreadMessages = chats.reduce((sum, c) => sum + c.unreadCount, 0);
 
   return {
     user: {
@@ -162,7 +160,7 @@ router.delete('/me/photos/:id', async (req, res) => {
 router.get('/me/friends', async (req, res) => {
   const { rows } = await query(
     `SELECT u.id, u.first_name, u.last_name, u.avatar_color,
-            ARRAY(SELECT group_id FROM group_memberships WHERE user_id = u.id) AS group_ids
+            ARRAY(SELECT group_id FROM group_memberships WHERE user_id = u.id)::int[] AS group_ids
      FROM friendships f
      JOIN users u ON u.id = CASE WHEN f.user_low_id = $1 THEN f.user_high_id ELSE f.user_low_id END
      WHERE $1 IN (f.user_low_id, f.user_high_id)

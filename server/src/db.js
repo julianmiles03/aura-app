@@ -10,6 +10,8 @@ export const pool = new pg.Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
   max: 5, // Supabase's free session pooler allows only a handful of connections
+  idleTimeoutMillis: 5 * 60 * 1000, // reconnecting to Supabase (TLS) is the slowest part of a request
+  keepAlive: true,
 });
 
 export const query = (text, params) => pool.query(text, params);

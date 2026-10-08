@@ -1,0 +1,86 @@
+import { dateTile, formatCost, formatTime, plural } from '../format.js';
+import Avatar from './Avatar.jsx';
+import Icon from './Icon.jsx';
+
+export function EventRow({ event }) {
+  const tile = dateTile(event.startsAt);
+  return (
+    <div className="event-row">
+      <div className={`date-tile ${tile.isToday ? 'date-tile--today' : ''}`}>
+        <span className="date-tile__dow">{tile.dow}</span>
+        <span className="date-tile__day">{tile.day}</span>
+      </div>
+      <div>
+        <div className="event-row__title">{event.title}</div>
+        <div className="event-row__meta">
+          {event.placeName} · {formatTime(event.startsAt)} · {formatCost(event.costCents)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const MAX_OTHER_INTERESTS = 3;
+
+// The recommended-group card on Find.
+export default function GroupCard({ group, position, total }) {
+  const { stats } = group;
+  const shared = group.interests.filter((i) => i.shared);
+  const others = group.interests.filter((i) => !i.shared).slice(0, MAX_OTHER_INTERESTS);
+  const meta = [
+    plural(group.memberCount, 'member'),
+    stats && plural(stats.mutualFriends, 'mutual friend'),
+    stats?.distanceMiles != null && `${stats.distanceMiles} mi away`,
+  ].filter(Boolean);
+
+  return (
+    <article className="gcard" aria-label={group.name}>
+      <div className="gcard__hero">
+        <div className="gcard__hero-row">
+          {group.statusText ? <span className="chip chip--status">{group.statusText}</span> : <span />}
+          {total > 0 && <span className="gcard__counter">{position} of {total}</span>}
+        </div>
+        <div className="gcard__photo">[{group.photoLabel}]</div>
+        {stats?.likesYou && <span className="gcard__likes-you">This group already wants to meet you</span>}
+      </div>
+
+      <div className="gcard__body">
+        <h2 className="gcard__name">{group.name}</h2>
+        <p className="gcard__meta">{meta.join(' · ')}</p>
+
+        {(shared.length > 0 || others.length > 0) && (
+          <div className="chips" aria-label="Interests">
+            {shared.map((i) => (
+              <span key={i.id} className="chip">
+                <Icon name="check" size={16} strokeWidth={2.5} /> <span className="sr-only">Shared: </span>{i.name}
+              </span>
+            ))}
+            {others.map((i) => (
+              <span key={i.id} className="chip chip--gray">+ {i.name}</span>
+            ))}
+          </div>
+        )}
+
+        <h3 className="section-label">Members</h3>
+        <div className="members">
+          {group.members.map((m) => (
+            <div key={m.id} className="member">
+              <Avatar initials={m.initials} color={m.avatarColor} size={42} />
+              <div>
+                <div className="member__name">{m.firstName}</div>
+                <div className="member__interests">{m.topInterests.join(' · ') || 'No interests yet'}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {group.events.length > 0 && (
+          <>
+            <h3 className="section-label">Going to</h3>
+            {group.events.map((e) => <EventRow key={e.id} event={e} />)}
+          </>
+        )}
+      </div>
+    </article>
+  );
+}
