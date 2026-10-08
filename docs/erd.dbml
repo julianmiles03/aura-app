@@ -101,7 +101,7 @@ Table group_memberships {
 
   indexes {
     (group_id, user_id) [pk]
-    user_id
+    (user_id, group_id) [unique, note: 'target of users.active_group_id composite FK']
   }
   Note: 'Trigger caps a group at 10 members (raises GROUP_FULL).'
 }

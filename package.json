@@ -1,0 +1,11 @@
+{
+  "name": "aura",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Team Aura: help friend groups find and meet other friend groups",
+  "workspaces": ["server"],
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "db:reset": "npm run db:reset --workspace server"
+  }
+}

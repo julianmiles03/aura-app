@@ -1,0 +1,13 @@
+{
+  "name": "aura-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:reset": "node scripts/db-reset.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.0",
+    "pg": "^8.16.0"
+  }
+}
