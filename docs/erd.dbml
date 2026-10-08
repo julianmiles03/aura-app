@@ -1,0 +1,247 @@
+// aura — Team Aura (Clint Burton, David Medina, Jaemin Weight, Julian Miles)
+// Paste into https://dbdiagram.io
+//
+// Cardinality key used in the notes below:
+//   1:1  one-to-one        1:N  one-to-many        M:N  many-to-many (via junction table)
+//
+// Derived (never stored):
+//   * group member count        -> COUNT(group_memberships)
+//   * group shared interests    -> view group_shared_interests (union of members' interests)
+//   * mutual friends            -> query over friendships
+//   * chat "N people"           -> COUNT(chat_participants)
+//   * unread count              -> messages newer than chat_participants.last_read_at
+//   * incoming like is pending  -> no reverse row in group_likes yet
+
+Enum like_decision {
+  connect
+  pass
+}
+
+Enum group_role {
+  owner
+  member
+}
+
+// ---------- People ----------
+
+Table users {
+  id               bigint [pk, increment]
+  first_name       varchar(50) [not null]
+  last_name        varchar(50) [not null]
+  city             varchar(80) [not null, note: 'e.g. "Provo, UT"; used for same-city ranking']
+  bio              text
+  age              smallint [note: 'CHECK 18..120; required to finish onboarding']
+  gender           varchar(30)
+  relationship_status varchar(30) [note: 'CHECK in (single, in_a_relationship, married, its_complicated, prefer_not_to_say)']
+  personality_traits text[] [not null, default: '{}', note: 'e.g. {Outgoing, Planner}; max 5']
+  avatar_color     char(7) [not null, default: '#FDDCCB', note: 'pastel hex behind initials']
+  active_group_id  bigint [note: 'composite FK (id, active_group_id) -> group_memberships, so it must be a group the user belongs to']
+  created_at       timestamptz [not null, default: `now()`]
+}
+
+Table user_photos {
+  id          bigint [pk, increment]
+  user_id     bigint [not null]
+  position    smallint [not null, note: 'CHECK 1..3 -> at most 3 photos']
+  label       varchar(60) [not null, note: 'placeholder caption, e.g. "Photo 1"']
+  image_url   text [note: 'null in the prototype (labeled placeholder box)']
+  created_at  timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_id, position) [unique]
+  }
+}
+
+Table interests {
+  id    bigint [pk, increment]
+  name  varchar(40) [not null, unique]
+}
+
+Table user_interests {
+  user_id     bigint [not null]
+  interest_id bigint [not null]
+  added_at    timestamptz [not null, default: `now()`, note: 'earliest two = "top 2" shown on member tiles']
+
+  indexes {
+    (user_id, interest_id) [pk]
+  }
+}
+
+Table friendships {
+  user_low_id   bigint [not null, note: 'CHECK user_low_id < user_high_id (one row per pair)']
+  user_high_id  bigint [not null]
+  created_at    timestamptz [not null, default: `now()`]
+
+  indexes {
+    (user_low_id, user_high_id) [pk]
+  }
+}
+
+// ---------- Groups ----------
+
+Table friend_groups {
+  id            bigint [pk, increment]
+  name          varchar(60) [not null]
+  city          varchar(80) [not null]
+  latitude      numeric(9,6) [note: 'home base, for "1.2 mi away"']
+  longitude     numeric(9,6)
+  status_text   varchar(80) [note: 'chip, e.g. "Looking for people this weekend"']
+  photo_label   varchar(60) [not null, default: 'Group photo']
+  avatar_color  char(7) [not null, default: '#ECE8FF']
+  invite_code   varchar(12) [not null, unique]
+  created_by    bigint [note: 'user who created it']
+  created_at    timestamptz [not null, default: `now()`]
+}
+
+Table group_memberships {
+  group_id   bigint [not null]
+  user_id    bigint [not null]
+  role       group_role [not null, default: 'member']
+  joined_at  timestamptz [not null, default: `now()`]
+
+  indexes {
+    (group_id, user_id) [pk]
+    user_id
+  }
+  Note: 'Trigger caps a group at 10 members (raises GROUP_FULL).'
+}
+
+// ---------- Matching ----------
+
+Table group_likes {
+  id               bigint [pk, increment]
+  from_group_id    bigint [not null]
+  to_group_id      bigint [not null, note: 'CHECK from_group_id <> to_group_id']
+  liked_by_user_id bigint [not null, note: 'member of from_group who swiped / accepted / declined']
+  decision         like_decision [not null]
+  created_at       timestamptz [not null, default: `now()`]
+
+  indexes {
+    (from_group_id, to_group_id) [unique, note: 'one decision per direction']
+    to_group_id
+  }
+}
+
+Table group_matches {
+  id             bigint [pk, increment]
+  group_low_id   bigint [not null, note: 'CHECK group_low_id < group_high_id']
+  group_high_id  bigint [not null]
+  matched_at     timestamptz [not null, default: `now()`]
+
+  indexes {
+    (group_low_id, group_high_id) [unique]
+  }
+}
+
+// ---------- Chat ----------
+
+Table chats {
+  id          bigint [pk, increment]
+  match_id    bigint [not null, unique, note: '1:1 with group_matches']
+  name        varchar(130) [not null, note: '"Tuesday Crew + Sunday Summit Club"']
+  created_at  timestamptz [not null, default: `now()`]
+}
+
+Table chat_participants {
+  chat_id       bigint [not null]
+  user_id       bigint [not null]
+  group_id      bigint [not null, note: 'which side of the match the user is in the chat for']
+  joined_at     timestamptz [not null, default: `now()`]
+  last_read_at  timestamptz [not null, default: `now()`]
+  archived_at   timestamptz [note: 'per-user Archive flag']
+  deleted_at    timestamptz [note: 'per-user "Recently deleted"']
+
+  indexes {
+    (chat_id, user_id) [pk]
+    user_id
+  }
+  Note: 'Trigger caps a chat at 30 participants (raises CHAT_FULL).'
+}
+
+Table messages {
+  id              bigint [pk, increment]
+  chat_id         bigint [not null]
+  sender_user_id  bigint [note: 'null if the sender account was deleted']
+  body            text [not null, note: 'CHECK length 1..2000']
+  created_at      timestamptz [not null, default: `now()`]
+
+  indexes {
+    (chat_id, created_at)
+  }
+}
+
+// ---------- Events ----------
+
+Table events {
+  id                  bigint [pk, increment]
+  title               varchar(100) [not null]
+  place_name          varchar(100) [not null, note: '"Theo\'s place", "Trailhead lot"']
+  starts_at           timestamptz [not null]
+  cost_cents          integer [not null, default: 0, note: 'CHECK >= 0; 0 renders as "Free"']
+  created_by_user_id  bigint
+  created_at          timestamptz [not null, default: `now()`]
+}
+
+Table group_event_attendance {
+  group_id          bigint [not null]
+  event_id          bigint [not null]
+  added_by_user_id  bigint
+  created_at        timestamptz [not null, default: `now()`]
+
+  indexes {
+    (group_id, event_id) [pk]
+  }
+}
+
+// ---------- Relationships ----------
+
+// 1:N  a user has 0..3 photos
+Ref: user_photos.user_id > users.id [delete: cascade]
+
+// M:N  users <-> interests via user_interests
+Ref: user_interests.user_id > users.id [delete: cascade]
+Ref: user_interests.interest_id > interests.id [delete: cascade]
+
+// M:N  users <-> users (self) via friendships
+Ref: friendships.user_low_id > users.id [delete: cascade]
+Ref: friendships.user_high_id > users.id [delete: cascade]
+
+// M:N  users <-> friend_groups via group_memberships (1 group : 1..10 members)
+Ref: group_memberships.user_id > users.id [delete: cascade]
+Ref: group_memberships.group_id > friend_groups.id [delete: cascade]
+
+// N:1  each user has 0..1 active group (must be one of their memberships)
+Ref: users.active_group_id > friend_groups.id [delete: set null]
+
+// 1:N  a user creates many groups
+Ref: friend_groups.created_by > users.id [delete: set null]
+
+// M:N  friend_groups <-> friend_groups (directed) via group_likes
+Ref: group_likes.from_group_id > friend_groups.id [delete: cascade]
+Ref: group_likes.to_group_id > friend_groups.id [delete: cascade]
+// 1:N  a user records many likes
+Ref: group_likes.liked_by_user_id > users.id [delete: cascade]
+
+// M:N  friend_groups <-> friend_groups (undirected) via group_matches
+Ref: group_matches.group_low_id > friend_groups.id [delete: cascade]
+Ref: group_matches.group_high_id > friend_groups.id [delete: cascade]
+
+// 1:1  each match has exactly one chat
+Ref: chats.match_id - group_matches.id [delete: cascade]
+
+// M:N  chats <-> users via chat_participants (1 chat : up to 30 people)
+Ref: chat_participants.chat_id > chats.id [delete: cascade]
+Ref: chat_participants.user_id > users.id [delete: cascade]
+Ref: chat_participants.group_id > friend_groups.id [delete: cascade]
+
+// 1:N  a chat has many messages; a user sends many messages
+Ref: messages.chat_id > chats.id [delete: cascade]
+Ref: messages.sender_user_id > users.id [delete: set null]
+
+// 1:N  a user creates many events
+Ref: events.created_by_user_id > users.id [delete: set null]
+
+// M:N  friend_groups <-> events via group_event_attendance ("Going to")
+Ref: group_event_attendance.group_id > friend_groups.id [delete: cascade]
+Ref: group_event_attendance.event_id > events.id [delete: cascade]
+Ref: group_event_attendance.added_by_user_id > users.id [delete: set null]

@@ -1,0 +1,131 @@
+erDiagram
+    users ||--o{ user_photos : "has 0..3"
+    users ||--o{ user_interests : picks
+    interests ||--o{ user_interests : "picked in"
+    users ||--o{ friendships : "low side"
+    users ||--o{ friendships : "high side"
+    users ||--o{ group_memberships : joins
+    friend_groups ||--|{ group_memberships : "has 1..10"
+    friend_groups |o--o{ users : "active group of"
+    users |o--o{ friend_groups : creates
+    friend_groups ||--o{ group_likes : sends
+    friend_groups ||--o{ group_likes : receives
+    users ||--o{ group_likes : "decided by"
+    friend_groups ||--o{ group_matches : "low side"
+    friend_groups ||--o{ group_matches : "high side"
+    group_matches ||--|| chats : opens
+    chats ||--|{ chat_participants : "has up to 30"
+    users ||--o{ chat_participants : "is in"
+    friend_groups ||--o{ chat_participants : "represented by"
+    chats ||--o{ messages : contains
+    users |o--o{ messages : sends
+    users |o--o{ events : creates
+    friend_groups ||--o{ group_event_attendance : "going to"
+    events ||--o{ group_event_attendance : "attended by"
+
+    users {
+        bigint id PK
+        varchar first_name
+        varchar last_name
+        varchar city
+        text bio
+        smallint age
+        varchar gender
+        varchar relationship_status
+        text_array personality_traits
+        char avatar_color
+        bigint active_group_id FK
+        timestamptz created_at
+    }
+    user_photos {
+        bigint id PK
+        bigint user_id FK
+        smallint position "1..3, unique per user"
+        varchar label
+        text image_url
+        timestamptz created_at
+    }
+    interests {
+        bigint id PK
+        varchar name UK
+    }
+    user_interests {
+        bigint user_id PK, FK
+        bigint interest_id PK, FK
+        timestamptz added_at
+    }
+    friendships {
+        bigint user_low_id PK, FK
+        bigint user_high_id PK, FK
+        timestamptz created_at
+    }
+    friend_groups {
+        bigint id PK
+        varchar name
+        varchar city
+        numeric latitude
+        numeric longitude
+        varchar status_text
+        varchar photo_label
+        char avatar_color
+        varchar invite_code UK
+        bigint created_by FK
+        timestamptz created_at
+    }
+    group_memberships {
+        bigint group_id PK, FK
+        bigint user_id PK, FK
+        group_role role
+        timestamptz joined_at
+    }
+    group_likes {
+        bigint id PK
+        bigint from_group_id FK "unique with to_group_id"
+        bigint to_group_id FK
+        bigint liked_by_user_id FK
+        like_decision decision "connect | pass"
+        timestamptz created_at
+    }
+    group_matches {
+        bigint id PK
+        bigint group_low_id FK "unique pair"
+        bigint group_high_id FK
+        timestamptz matched_at
+    }
+    chats {
+        bigint id PK
+        bigint match_id FK, UK
+        varchar name
+        timestamptz created_at
+    }
+    chat_participants {
+        bigint chat_id PK, FK
+        bigint user_id PK, FK
+        bigint group_id FK
+        timestamptz joined_at
+        timestamptz last_read_at
+        timestamptz archived_at
+        timestamptz deleted_at
+    }
+    messages {
+        bigint id PK
+        bigint chat_id FK
+        bigint sender_user_id FK
+        text body
+        timestamptz created_at
+    }
+    events {
+        bigint id PK
+        varchar title
+        varchar place_name
+        timestamptz starts_at
+        integer cost_cents
+        bigint created_by_user_id FK
+        timestamptz created_at
+    }
+    group_event_attendance {
+        bigint group_id PK, FK
+        bigint event_id PK, FK
+        bigint added_by_user_id FK
+        timestamptz created_at
+    }
