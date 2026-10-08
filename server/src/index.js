@@ -10,10 +10,13 @@ import meRouter from './routes/me.js';
 import publicRouter from './routes/public.js';
 
 const app = express();
+app.set('etag', false);
 
 app.use(express.json({ limit: '100kb' }));
 app.use((req, res, next) => {
   req.body ??= {};
+  // API data changes constantly (likes, chats); never let the browser reuse an old response.
+  res.set('Cache-Control', 'no-store');
   const started = Date.now();
   res.on('finish', () => console.log(`${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - started}ms)`));
   next();

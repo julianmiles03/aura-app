@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "db:reset": "node scripts/db-reset.js"
+    "db:reset": "node scripts/db-reset.js",
+    "verify:slice": "node scripts/verify-slice.js"
   },
   "dependencies": {
     "dotenv": "^17.2.0",
