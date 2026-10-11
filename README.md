@@ -26,13 +26,13 @@ Business rules are enforced in the database, not just the UI:
 |---|---|---|
 | Frontend | **React + Vite**, plain CSS (`/client`) | The most widely used UI library, so everyone on the team can contribute. Vite starts in under a second and reloads on save. Plain CSS with design tokens (no UI framework) keeps the mockups' look exact without another thing to learn. |
 | Backend | **Node + Express** REST API (`/server`) | The same language as the frontend, so nobody has to switch languages. Express is small enough to read end to end, and each screen maps to a few clear endpoints that return JSON errors like `409 GROUP_FULL`. |
-| Database | **PostgreSQL on Supabase**, accessed with `pg` | The free tier covers everything we need at this stage. Supabase's **Table Editor** lets the whole team see rows appear as we click through the app. All four of us point at **one shared database**, so nobody's local setup drifts and seed data is the same for everyone. We use Supabase only as a Postgres host with plain SQL, so the work stays portable and shows real relational design (constraints, triggers, views). |
+| Database | **PostgreSQL on Supabase**, accessed with `pg` | The free tier covers everything we need at this stage. Supabase's **Table Editor** lets the whole team see rows appear as we click through the app. All four of us point at **one shared database** (the Supabase project Find Friends App), so nobody's local setup drifts and seed data is the same for everyone. We use Supabase only as a Postgres host with plain SQL, so the work stays portable and shows real relational design (constraints, triggers, views). |
 | Auth | "Signed in as" picker (prototype) | Real login is out of scope for the prototype. The picker stores a user id in `localStorage` and sends it as an `X-User-Id` header, which keeps demos fast while the server still applies every rule (onboarding gate, membership, active group). |
 | Tooling | npm workspaces, `concurrently` | `npm install` installs everything once. `npm run dev` starts both servers, and `npm run db:reset` rebuilds the database from the SQL files. |
 
 ## How to Get It Running
 
-These steps assume a fresh clone and no prior knowledge of the project.
+These steps assume a fresh clone and no prior knowledge of the project. The whole team shares **one** database, the Supabase project **Find Friends App**, so you don't create your own.
 
 1. **Install Node.js 20 or newer** (we develop on Node 24). Check with `node -v`. Get it from [nodejs.org](https://nodejs.org).
 
@@ -43,37 +43,42 @@ These steps assume a fresh clone and no prior knowledge of the project.
    npm install
    ```
 
-3. **Get a database connection string.**
-   - **If you're on Team Aura:** ask Julian for the shared `DATABASE_URL` (sent privately, never committed) and skip to step 4.
-   - **To use your own free database:**
-     1. Sign up at [supabase.com](https://supabase.com), click **New project**, choose a name and region, and set a **database password**. Save the password, because you'll need it in a moment. Wait about a minute for the project to finish setting up.
-     2. Click **Connect** at the top of the project page.
-     3. Under **Connection string**, choose **Session pooler** and copy the URI. It looks like `postgresql://postgres.abcdefghijk:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres`.
-     4. Replace `[YOUR-PASSWORD]` (including the brackets) with the database password you set.
+3. **Copy the connection string from Supabase.** Julian has to invite you to the Supabase organization first.
+   1. In [Supabase](https://supabase.com/dashboard), open the project **Find Friends App**. Use only this project; any other project in the list (for example TESTAQUARIUM) is unrelated and has none of our tables.
+   2. Click **Connect** (top bar) → **Direct** → **Session pooler** → **Type: URI** → copy. Don't retype it.
+   3. Check the username, the part right after `postgresql://`. It must be **`postgres.rcyafwgjnnlgnakwkksi`**, not just `postgres`. The whole string looks like:
+      `postgresql://postgres.rcyafwgjnnlgnakwkksi:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres`
+      Use the Session pooler (port 5432), not the Direct connection (`db.rcyafwgjnnlgnakwkksi.supabase.co`). The direct one is IPv6-only on the free tier and won't connect from most home or campus networks.
 
-4. **Create your `.env` file.** Copy the example and paste the connection string in:
+4. **Get the database password from Julian by DM.** Replace `[YOUR-PASSWORD]` (including the brackets) with it. If the password contains `@ # / ? %`, percent-encode those characters (`@` → `%40`, `#` → `%23`, `/` → `%2F`, `?` → `%3F`, `%` → `%25`).
+   **Never reset the database password in Supabase.** Resetting it breaks everyone else's connection.
+
+5. **Create your `.env` file** and paste the full string as `DATABASE_URL`:
    ```bash
    cp server/.env.example server/.env
    ```
-   Then open `server/.env` and set `DATABASE_URL=` to your connection string. `server/.env` is git-ignored, so your password never gets committed.
+   Open `server/.env` and replace the whole `DATABASE_URL=...` line with `DATABASE_URL=<the string from steps 3–4>`. `server/.env` is git-ignored, so your password never gets committed.
 
-5. **Create the tables and sample data.**
+6. **Check the connection.**
    ```bash
-   npm run db:reset
+   npm run db:check
    ```
-   This runs `db/schema.sql` and then `db/seed.sql`, and should print `Database ready: 16 users, 5 groups.` It's safe to run again any time you want a fresh demo. On the shared team database, it wipes everyone's test data, so tell the team first.
+   You should see `OK: users table has N rows. Your server/.env is right.` If not, it prints the exact fix (see Troubleshooting below). This check is read-only and safe to run any time.
 
-6. **Start the app.**
+7. **Start the app.**
    ```bash
    npm run dev
    ```
-   This starts the API on http://localhost:4000 and the web app on http://localhost:5173.
+   This starts the API on http://localhost:4000 and the web app on http://localhost:5173. **Open http://localhost:5173.** On a desktop it renders at phone width; for the true mobile view, use your browser's device toolbar.
 
-7. **Open http://localhost:5173** in your browser. On a desktop it renders at phone width. For the true mobile view, use your browser's device toolbar.
+The tables and sample data already exist in Find Friends App. `npm run db:reset` rebuilds them from `db/schema.sql` and `db/seed.sql`, but it **wipes everyone's data on the shared database**, so only run it after the team agrees.
 
-Troubleshooting:
-- `DATABASE_URL is not set`: `server/.env` is missing or still contains `[YOUR-PASSWORD]`.
-- `password authentication failed`: the password in the URI is wrong. You can reset it in Supabase under **Project Settings → Database**.
+**Troubleshooting**
+- **`Tenant or user not found`** or **`no tenant identifier provided`**: the username is missing the project ref. It must be `postgres.rcyafwgjnnlgnakwkksi`, not `postgres`. Re-copy the Session pooler URI.
+- **`password authentication failed`**: the password is wrong, or it has special characters that aren't percent-encoded. Ask Julian for the current password. Don't reset it.
+- **`DATABASE_URL is not set`**: `server/.env` is missing, or still has a placeholder like `<your-db-password>` or `[YOUR-PASSWORD]`.
+- **`ENOTFOUND` / `ENETUNREACH` / timeouts**: you copied the Direct connection (`db.….supabase.co`). Use the Session pooler URI instead.
+- **`relation "users" does not exist`**: you're connected to the wrong Supabase project. Use Find Friends App.
 - The page says it can't reach the server: make sure `npm run dev` is still running.
 
 ## Verifying the Vertical Slice
@@ -91,6 +96,6 @@ The vertical slice is **Accept** in "Groups that liked you". It goes from the br
 
    The new match and chat have the same timestamp, because they were created in the same transaction.
 
-Run `npm run db:reset` to put the two requests back for the next demo.
+Run `npm run db:reset` to put the two requests back for the next demo (check with the team first, because it resets the shared database).
 
-You can also check the slice automatically. With `npm run dev` running, run `npm run verify:slice`. It accepts a request as Avery, checks the API response, refetches like a browser refresh would, checks the database rows, and prints `PASS`/`FAIL` for each step. Run `npm run db:reset` afterwards.
+You can also check the slice automatically. With `npm run dev` running, run `npm run verify:slice`. It accepts a request as Avery, checks the API response, refetches like a browser refresh would, checks the database rows, and prints `PASS`/`FAIL` for each step. It really accepts a request, so coordinate with the team before running it on the shared database.

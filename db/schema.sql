@@ -109,7 +109,9 @@ ALTER TABLE users
 
 -- Business rule: a Friend Group has at most 10 members.
 CREATE FUNCTION enforce_group_member_cap() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = public  -- pinned so the function can't be hijacked by another schema (Supabase advisor)
+AS $$
 BEGIN
   -- Lock the group row so two concurrent joins can't both squeeze in as #10.
   PERFORM 1 FROM friend_groups WHERE id = NEW.group_id FOR UPDATE;
@@ -174,7 +176,9 @@ CREATE INDEX chat_participants_user_idx ON chat_participants (user_id);
 
 -- Business rule: a group chat has at most 30 people.
 CREATE FUNCTION enforce_chat_participant_cap() RETURNS trigger
-LANGUAGE plpgsql AS $$
+LANGUAGE plpgsql
+SET search_path = public  -- pinned so the function can't be hijacked by another schema (Supabase advisor)
+AS $$
 BEGIN
   PERFORM 1 FROM chats WHERE id = NEW.chat_id FOR UPDATE;
   IF (SELECT count(*) FROM chat_participants WHERE chat_id = NEW.chat_id) >= 30 THEN

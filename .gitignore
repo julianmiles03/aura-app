@@ -1,7 +1,14 @@
 node_modules/
 dist/
-.env
-*.local
 .DS_Store
 npm-debug.log*
+
+# Secrets: never commit real connection strings or passwords
+.env
+server/.env
+*.env.local
+*.local
+
+# Machine-specific notes and local Claude Code settings
+CLAUDE.local.md
 .claude/

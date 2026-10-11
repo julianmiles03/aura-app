@@ -6,7 +6,8 @@ import dotenv from 'dotenv';
 
 dotenv.config({ path: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.env'), quiet: true });
 
-if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('YOUR-PASSWORD')) {
-  console.error('DATABASE_URL is not set. Copy server/.env.example to server/.env and paste your Supabase connection string.');
+const url = process.env.DATABASE_URL;
+if (!url || /YOUR-PASSWORD|<[a-z-]+>/i.test(url)) {
+  console.error('DATABASE_URL is not set. Copy server/.env.example to server/.env and paste the Find Friends App Session pooler URI (see README).');
   process.exit(1);
 }
