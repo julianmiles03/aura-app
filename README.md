@@ -38,8 +38,8 @@ These steps assume a fresh clone and no prior knowledge of the project. The whol
 
 2. **Clone and install.**
    ```bash
-   git clone https://github.com/julianmiles03/aura.git
-   cd aura
+   git clone https://github.com/julianmiles03/aura-app.git
+   cd aura-app
    npm install
    ```
 
