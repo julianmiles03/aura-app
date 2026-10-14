@@ -60,7 +60,7 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup }) {
   ];
 
   return (
-    <div className="screen">
+    <div className="screen screen--profile">
       <header className="page-head">
         <h1 className="page-title">Profile</h1>
         <button type="button" className="icon-btn" aria-label="Edit profile settings" onClick={() => setSheet({ type: 'edit' })}>
@@ -68,88 +68,95 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup }) {
         </button>
       </header>
 
-      <section className="card">
-        <div className="profile-top">
-          <Avatar initials={user.initials} color={user.avatarColor} size={72} />
-          <div className="profile-top__info">
-            <h2 className="profile-top__name">{user.firstName} {user.lastName}</h2>
-            <div className="subtle">{user.city}</div>
+      <div className="profile-columns">
+        <div className="profile-col">
+          <section className="card">
+            <div className="profile-top">
+              <Avatar initials={user.initials} color={user.avatarColor} size={72} />
+              <div className="profile-top__info">
+                <h2 className="profile-top__name">{user.firstName} {user.lastName}</h2>
+                <div className="subtle">{user.city}</div>
+              </div>
+              <button type="button" className="btn btn--outline btn--sm" onClick={() => setSheet({ type: 'edit' })}>Edit</button>
+            </div>
+            {user.bio && <p className="profile-bio">{user.bio}</p>}
+          </section>
+
+          <section className="card">
+            <div className="card__head">
+              <h2 className="card__title">Photos</h2>
+              <span className="muted-small">{photos.length} of 3</span>
+            </div>
+            <div className="photos">
+              {photos.map((p, i) => (
+                <div key={p.id} className="photo" style={{ background: PHOTO_TINTS[i % 3], color: PHOTO_INK[i % 3] }}>
+                  [{p.label}]
+                  {photos.length > 1 && (
+                    <button type="button" className="photo__remove" aria-label={`Remove ${p.label}`} onClick={() => removePhoto(p)}>
+                      <Icon name="x" size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {photos.length < 3 && (
+                <button type="button" className="photo photo--add" onClick={addPhoto}>
+                  <Icon name="plus" size={28} />
+                  Add photo
+                </button>
+              )}
+            </div>
+          </section>
+
+          <section className="card">
+            <h2 className="card__title">About me</h2>
+            <dl className="about">
+              {about.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value || '—'}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+
+          <section className="card">
+            <h2 className="card__title">Interests</h2>
+            <div className="chips">
+              {interests.map((i) => (
+                <span key={i.id} className="chip">
+                  {i.name}
+                  {interests.length > 1 && (
+                    <button type="button" className="chip__remove" aria-label={`Remove ${i.name}`} onClick={() => removeInterest(i)}>
+                      <Icon name="x" size={14} strokeWidth={2.5} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              <button type="button" className="chip chip--dashed" onClick={() => setSheet({ type: 'interest' })}>+ Add</button>
+            </div>
+            <p className="hint">Changes here update your groups' shared interests.</p>
+          </section>
+
+        </div>
+
+        <div className="profile-col">
+          <div className="mygroups-head">
+            <h2>My groups</h2>
+            <button type="button" className="btn btn--dark btn--sm" onClick={() => setSheet({ type: 'createJoin' })}>Create or join</button>
           </div>
-          <button type="button" className="btn btn--outline btn--sm" onClick={() => setSheet({ type: 'edit' })}>Edit</button>
-        </div>
-        {user.bio && <p className="profile-bio">{user.bio}</p>}
-      </section>
 
-      <section className="card">
-        <div className="card__head">
-          <h2 className="card__title">Photos</h2>
-          <span className="muted-small">{photos.length} of 3</span>
-        </div>
-        <div className="photos">
-          {photos.map((p, i) => (
-            <div key={p.id} className="photo" style={{ background: PHOTO_TINTS[i % 3], color: PHOTO_INK[i % 3] }}>
-              [{p.label}]
-              {photos.length > 1 && (
-                <button type="button" className="photo__remove" aria-label={`Remove ${p.label}`} onClick={() => removePhoto(p)}>
-                  <Icon name="x" size={16} />
-                </button>
-              )}
-            </div>
+          {me.groups.map((g) => (
+            <MyGroupCard
+              key={g.id}
+              group={g}
+              onSwitch={() => onSwitchGroup(g.id)}
+              onInvite={() => setSheet({ type: 'invite', group: g })}
+              onManage={() => setSheet({ type: 'manage', group: g })}
+              onAddEvent={() => setSheet({ type: 'event', group: g })}
+            />
           ))}
-          {photos.length < 3 && (
-            <button type="button" className="photo photo--add" onClick={addPhoto}>
-              <Icon name="plus" size={28} />
-              Add photo
-            </button>
-          )}
         </div>
-      </section>
-
-      <section className="card">
-        <h2 className="card__title">About me</h2>
-        <dl className="about">
-          {about.map(([label, value]) => (
-            <div key={label}>
-              <dt>{label}</dt>
-              <dd>{value || '—'}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      <section className="card">
-        <h2 className="card__title">Interests</h2>
-        <div className="chips">
-          {interests.map((i) => (
-            <span key={i.id} className="chip">
-              {i.name}
-              {interests.length > 1 && (
-                <button type="button" className="chip__remove" aria-label={`Remove ${i.name}`} onClick={() => removeInterest(i)}>
-                  <Icon name="x" size={14} strokeWidth={2.5} />
-                </button>
-              )}
-            </span>
-          ))}
-          <button type="button" className="chip chip--dashed" onClick={() => setSheet({ type: 'interest' })}>+ Add</button>
-        </div>
-        <p className="hint">Changes here update your groups' shared interests.</p>
-      </section>
-
-      <div className="mygroups-head">
-        <h2>My groups</h2>
-        <button type="button" className="btn btn--dark btn--sm" onClick={() => setSheet({ type: 'createJoin' })}>Create or join</button>
       </div>
-
-      {me.groups.map((g) => (
-        <MyGroupCard
-          key={g.id}
-          group={g}
-          onSwitch={() => onSwitchGroup(g.id)}
-          onInvite={() => setSheet({ type: 'invite', group: g })}
-          onManage={() => setSheet({ type: 'manage', group: g })}
-          onAddEvent={() => setSheet({ type: 'event', group: g })}
-        />
-      ))}
 
       {sheet?.type === 'edit' && (
         <Sheet title="Edit profile" onClose={close}>

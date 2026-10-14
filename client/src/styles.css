@@ -778,3 +778,125 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ======================================================================
+   Desktop layout (>= 1024px). Phones keep everything above unchanged.
+   App.jsx switches to .frame--desktop at the same breakpoint.
+   ====================================================================== */
+.sidebar, .messages-split { display: none; }
+
+@media (min-width: 1024px) {
+  body { background: var(--ground); }
+
+  .frame--desktop {
+    --tabbar-h: 0px;
+    max-width: 1440px;
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    box-shadow: none;
+  }
+  .main { min-width: 0; }
+  .frame--desktop .screen { padding: 12px 40px 48px; }
+
+  /* Sidebar navigation */
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 28px 16px 20px;
+    background: var(--card);
+    border-right: 1px solid var(--line);
+  }
+  .sidebar__brand { display: inline-block; padding: 0 12px 20px; font-size: 40px; text-decoration: none; }
+  .sidebar__nav { display: grid; gap: 4px; }
+  .sidebar__item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 52px;
+    padding: 0 14px;
+    border-radius: 16px;
+    color: var(--muted);
+    font-weight: 700;
+    font-size: 17px;
+    text-decoration: none;
+  }
+  .sidebar__item:hover { background: var(--ground); color: var(--ink); }
+  .sidebar__item[aria-current='page'] { background: var(--accent-soft); color: var(--accent-ink); }
+  .sidebar__badge { margin-left: auto; }
+  .sidebar__foot { margin-top: auto; }
+  .signed-in-bar--stacked { flex-direction: column; align-items: stretch; gap: 6px; padding: 0; }
+  .signed-in-bar--stacked select { max-width: none; width: 100%; min-height: 44px; }
+  .signed-in-bar--stacked .signed-in-bar__tag { margin: 0; }
+
+  /* Find: photo panel left, details right */
+  .screen--find { max-width: 1040px; }
+  .screen--find .gcard { display: grid; grid-template-columns: minmax(280px, 38%) minmax(0, 1fr); }
+  .screen--find .gcard__hero { min-height: 100%; padding: 20px; }
+  .screen--find .gcard__photo { margin: auto 0; font-size: 17px; }
+  .screen--find .gcard__body { padding: 28px 32px 32px; }
+  .screen--find .members { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .screen--find .decide-bar {
+    bottom: 0;
+    margin: 0;
+    padding: 16px 0 24px;
+    grid-template-columns: 1fr 1fr;
+    max-width: 560px;
+    margin-left: auto;
+  }
+  .screen--find .empty { max-width: 560px; }
+
+  /* Messages: list pane + conversation pane */
+  .messages-split {
+    display: grid;
+    grid-template-columns: minmax(360px, 420px) minmax(0, 1fr);
+    height: 100dvh;
+  }
+  .messages__list {
+    overflow-y: auto;
+    padding: 12px 20px 32px;
+    border-right: 1px solid var(--line);
+  }
+  .messages__list .page-title { font-size: 34px; }
+  .messages__pane { min-width: 0; height: 100dvh; background: var(--ground); }
+  .chat-screen--embedded { height: 100dvh; }
+  .chat-screen--embedded .chat-head { padding: 16px 24px; }
+  .chat-screen--embedded .chat-body { padding: 20px 32px; }
+  .chat-screen--embedded .msg { max-width: min(70%, 640px); }
+  .chat-screen--embedded .composer { padding: 14px 24px; }
+  .chat-row--open, .chat-row--open:hover { background: var(--accent-soft); }
+  .pane-empty {
+    height: 100%;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+    padding: 24px;
+    color: var(--muted);
+  }
+  .pane-empty h2 { color: var(--ink); font-size: 24px; margin-bottom: 6px; }
+  .pane-empty p { max-width: 320px; margin: 0; }
+
+  /* Profile: about me left, groups right */
+  .screen--profile { max-width: 1180px; }
+  .profile-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: start;
+  }
+  .screen--profile .mygroups-head { margin-top: 0; }
+  .screen--profile .mygroups-head h2 { font-size: 24px; }
+
+  /* Sheets become centered dialogs; toasts sit at the bottom of the main area */
+  .sheet-backdrop { align-items: center; padding: 24px; }
+  .sheet { width: min(520px, 100%); border-radius: 28px; max-height: 88dvh; padding-top: 14px; }
+  .sheet__grip { display: none; }
+  .toast-wrap { bottom: 24px; }
+}
+@media (min-width: 1024px) {
+  .group-switch__pill { max-width: 340px; }
+}

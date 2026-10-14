@@ -7,7 +7,9 @@ import { formatTime, plural } from '../format.js';
 
 const POLL_MS = 5000;
 
-export default function ChatScreen({ chatId, refreshMe }) {
+// Phones: a full screen with a back arrow. Desktop: `embedded` in the Messages split view,
+// calling onActivity after it marks the chat read or sends, so the chat list can refresh.
+export default function ChatScreen({ chatId, refreshMe, embedded = false, onActivity }) {
   const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -15,6 +17,8 @@ export default function ChatScreen({ chatId, refreshMe }) {
   const [sending, setSending] = useState(false);
   const bottom = useRef(null);
   const lastCount = useRef(0);
+  const activityRef = useRef(onActivity);
+  activityRef.current = onActivity;
 
   const load = useCallback(async () => {
     try {
@@ -26,7 +30,10 @@ export default function ChatScreen({ chatId, refreshMe }) {
 
   // Load, mark read (server does it on GET), then poll for new messages while open.
   useEffect(() => {
-    load().then(refreshMe);
+    load().then(() => {
+      refreshMe();
+      activityRef.current?.();
+    });
     const timer = setInterval(load, POLL_MS);
     return () => clearInterval(timer);
   }, [load, refreshMe]);
@@ -46,6 +53,7 @@ export default function ChatScreen({ chatId, refreshMe }) {
       const { message } = await api(`/chats/${chatId}/messages`, { method: 'POST', body: { body } });
       setData((d) => ({ ...d, messages: [...d.messages, message] }));
       setDraft('');
+      activityRef.current?.();
     } catch (err) {
       toast(err.message, { tone: 'error' });
     } finally {
@@ -56,7 +64,7 @@ export default function ChatScreen({ chatId, refreshMe }) {
   if (error) {
     return (
       <div className="screen">
-        <a className="link-btn" href="#/messages"><Icon name="chevronLeft" size={18} /> Messages</a>
+        {!embedded && <a className="link-btn" href="#/messages"><Icon name="chevronLeft" size={18} /> Messages</a>}
         <div className="empty" style={{ marginTop: 16 }}>
           <h2>Can't open this chat</h2>
           <p>{error.message}</p>
@@ -68,11 +76,13 @@ export default function ChatScreen({ chatId, refreshMe }) {
 
   const { chat, messages, participants } = data;
   return (
-    <div className="chat-screen">
+    <div className={`chat-screen ${embedded ? 'chat-screen--embedded' : ''}`}>
       <header className="chat-head">
-        <a href="#/messages" className="icon-btn icon-btn--plain" aria-label="Back to Messages">
-          <Icon name="chevronLeft" size={26} />
-        </a>
+        {!embedded && (
+          <a href="#/messages" className="icon-btn icon-btn--plain" aria-label="Back to Messages">
+            <Icon name="chevronLeft" size={26} />
+          </a>
+        )}
         <GroupPair mine={chat.myGroup} other={chat.otherGroup} size={36} />
         <div>
           <div className="chat-head__name">{chat.name}</div>

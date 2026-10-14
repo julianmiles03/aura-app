@@ -3,11 +3,12 @@ import { api } from '../api.js';
 import Avatar, { GroupPair } from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
 import { useToast } from '../components/ui.jsx';
+import ChatScreen from './ChatScreen.jsx';
 import { formatChatTime, plural } from '../format.js';
 
 const VIEW_TITLES = { archived: 'Archived', deleted: 'Recently deleted' };
 
-export default function MessagesScreen({ me, onSwitchGroup, refreshMe }) {
+export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop = false, chatId = null }) {
   const toast = useToast();
   const groupId = me.activeGroupId;
   const activeGroup = me.groups.find((g) => g.id === groupId);
@@ -39,6 +40,15 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe }) {
     load();
   }, [load]);
 
+  // Desktop: the open chat pane reports reads/sends so the list's previews and unread counts stay current.
+  const refreshChats = useCallback(async () => {
+    try {
+      setChats((await api(`/groups/${groupId}/chats?view=${view}`)).chats);
+    } catch {
+      // The list keeps its last good state; the next full load will retry.
+    }
+  }, [groupId, view]);
+
   // The vertical slice: accept -> server creates match + chat -> we update the lists in place.
   const accept = async (like) => {
     setPendingLikeId(like.id);
@@ -47,6 +57,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe }) {
       setLikes((ls) => ls.filter((l) => l.id !== like.id));
       if (view === 'inbox') setChats((cs) => [chat, ...(cs ?? []).filter((c) => c.id !== chat.id)]);
       setNewChatId(chat.id);
+      if (isDesktop) window.location.hash = `#/messages/${chat.id}`; // open it in the chat pane
       toast(`You matched with ${like.group.name}! Say hi in your new chat.`);
     } catch (err) {
       toast(err.message, { tone: 'error' });
@@ -91,8 +102,8 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe }) {
     }
   };
 
-  return (
-    <div className="screen">
+  const listPane = (
+    <div className={isDesktop ? 'messages__list' : 'screen'}>
       <header className="page-head">
         <h1 className="page-title">Messages</h1>
       </header>
@@ -221,6 +232,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe }) {
               key={chat.id}
               chat={chat}
               isNew={chat.id === newChatId}
+              isOpen={isDesktop && chat.id === chatId}
               selecting={selecting}
               selected={selected.has(chat.id)}
               onToggle={() => toggle(chat.id)}
@@ -230,9 +242,27 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe }) {
       )}
     </div>
   );
+
+  if (!isDesktop) return listPane;
+  return (
+    <div className="messages-split">
+      {listPane}
+      <section className="messages__pane" aria-label="Conversation">
+        {chatId ? (
+          <ChatScreen key={chatId} chatId={chatId} refreshMe={refreshMe} onActivity={refreshChats} embedded />
+        ) : (
+          <div className="pane-empty">
+            <span className="empty__icon"><Icon name="messages" size={30} /></span>
+            <h2>Pick a chat</h2>
+            <p>Choose a conversation on the left, or accept a group that wants to meet {activeGroup?.name}.</p>
+          </div>
+        )}
+      </section>
+    </div>
+  );
 }
 
-function ChatRow({ chat, isNew, selecting, selected, onToggle }) {
+function ChatRow({ chat, isNew, isOpen, selecting, selected, onToggle }) {
   const last = chat.lastMessage;
   const preview = last
     ? `${last.mine ? 'You' : last.senderFirstName ?? 'Someone'}: ${last.body}`
@@ -244,9 +274,10 @@ function ChatRow({ chat, isNew, selecting, selected, onToggle }) {
   return (
     <button
       type="button"
-      className={`chat-row ${isNew ? 'chat-row--new' : ''}`}
+      className={`chat-row ${isNew ? 'chat-row--new' : ''} ${isOpen ? 'chat-row--open' : ''}`}
       onClick={open}
       aria-pressed={selecting ? selected : undefined}
+      aria-current={isOpen ? 'true' : undefined}
       data-chat-id={chat.id}
     >
       {selecting && (

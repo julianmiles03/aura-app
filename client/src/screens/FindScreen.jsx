@@ -6,7 +6,7 @@ import Icon from '../components/Icon.jsx';
 import { useToast } from '../components/ui.jsx';
 import { plural } from '../format.js';
 
-export default function FindScreen({ me, onSwitchGroup, refreshMe }) {
+export default function FindScreen({ me, onSwitchGroup, refreshMe, isDesktop = false }) {
   const toast = useToast();
   const activeGroupId = me.activeGroupId;
   const [data, setData] = useState(null); // { actingGroup, total, recommendations }
@@ -61,9 +61,9 @@ export default function FindScreen({ me, onSwitchGroup, refreshMe }) {
   const activeName = me.groups.find((g) => g.id === activeGroupId)?.name;
 
   return (
-    <div className="screen">
+    <div className="screen screen--find">
       <header className="page-head">
-        <span className="wordmark" aria-label="aura">aura</span>
+        {isDesktop ? <h1 className="page-title">Find</h1> : <span className="wordmark" aria-label="aura">aura</span>}
         <GroupSwitcher groups={me.groups} activeGroupId={activeGroupId} onSwitch={onSwitchGroup} />
       </header>
 
