@@ -12,6 +12,7 @@ Machine-specific notes (paths, accounts, local setup) belong in `CLAUDE.local.md
 - CI: `.github/workflows/ci.yml` runs `npm ci && npm run build` on every PR; merge only through PRs (README "How We Merge").
 - Hosting: Render, from `render.yaml` (API web service + static client). The client reads `VITE_API_URL` at build time; the API allows only `CORS_ORIGIN`. Pushing to `main` redeploys.
 - Database: the shared Supabase project **Find Friends App**, reached through the Session pooler (port 5432). The connection string lives only in `server/.env`.
+- Profile photos: Supabase Storage, public bucket `profile-photos`, called over its REST API with `fetch` in `server/src/lib/storage.js` (still no Supabase JS client). Needs `SUPABASE_SERVICE_ROLE_KEY` (plus the `SUPABASE_URL` sign-in already uses) in `server/.env` and on Render; the service_role key never goes to the client.
 - AI: the API calls Google's Gemini API to write 3 conversation starters for each new match. `server/src/lib/gemini.js` is the only file that talks to it (plain `fetch`, no SDK); `server/src/lib/suggestions.js` has the prompt, the checks on the answer and the `chat_suggestions` queries. The key is `GEMINI_API_KEY`, read from the API's environment (Render's Environment tab, or `server/.env`); `GEMINI_MODEL` overrides the model.
 
 ## Commands (run from the repo root)
