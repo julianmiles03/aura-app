@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import Icon from '../components/Icon.jsx';
+import PhotoGrid from '../components/PhotoGrid.jsx';
 import { AddInterestForm, CreateOrJoinForm, ProfileFields, profileFormValue, profilePatch } from '../components/forms.jsx';
 import { FormError, useAsyncAction } from '../components/ui.jsx';
 
@@ -15,10 +16,6 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
   const { busy, error, run } = useAsyncAction();
   const missing = me.onboarding.missing;
 
-  const addPhoto = () => run(async () => {
-    await api('/me/photos', { method: 'POST', body: {} });
-    await refreshMe();
-  });
   const addInterest = async (name) => {
     setMe(await api('/me', { method: 'PATCH', body: { interests: [...me.interests.map((i) => i.name), name] } }));
   };
@@ -44,14 +41,7 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
           <h2 className="card__title">Photos</h2>
           <span className="muted-small">{me.photos.length} of 3</span>
         </div>
-        <div className="photos">
-          {me.photos.map((p) => <div key={p.id} className="photo" style={{ background: '#E6E1FF', color: '#4C1D95' }}>[{p.label}]</div>)}
-          {me.photos.length < 3 && (
-            <button type="button" className="photo photo--add" onClick={addPhoto} disabled={busy}>
-              <Icon name="image" size={26} /> Add photo
-            </button>
-          )}
-        </div>
+        <PhotoGrid photos={me.photos} ownerName={me.user.firstName} onChanged={refreshMe} />
       </section>
 
       <section className="card">
