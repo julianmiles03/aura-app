@@ -2,14 +2,13 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import Avatar, { AvatarStack } from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
+import PhotoGrid from '../components/PhotoGrid.jsx';
 import {
   AddInterestForm, CreateOrJoinForm, EditProfileForm, InviteFriends, ManageGroupForm,
 } from '../components/forms.jsx';
 import { Sheet, useToast } from '../components/ui.jsx';
 import { RELATIONSHIP_LABELS } from '../format.js';
 
-const PHOTO_TINTS = ['#E6E1FF', '#DDF3E0', '#FDDCCB'];
-const PHOTO_INK = ['#4C1D95', '#166534', '#9A3412'];
 export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onSignOut }) {
   const toast = useToast();
   const [sheet, setSheet] = useState(null); // { type, group? }
@@ -29,22 +28,6 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
   const removeInterest = async (interest) => {
     try {
       await saveInterests(interests.filter((i) => i.id !== interest.id).map((i) => i.name));
-    } catch (err) {
-      toast(err.message, { tone: 'error' });
-    }
-  };
-  const addPhoto = async () => {
-    try {
-      await api('/me/photos', { method: 'POST', body: {} });
-      await refreshMe();
-    } catch (err) {
-      toast(err.message, { tone: 'error' });
-    }
-  };
-  const removePhoto = async (photo) => {
-    try {
-      await api(`/me/photos/${photo.id}`, { method: 'DELETE' });
-      await refreshMe();
     } catch (err) {
       toast(err.message, { tone: 'error' });
     }
@@ -85,24 +68,7 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
               <h2 className="card__title">Photos</h2>
               <span className="muted-small">{photos.length} of 3</span>
             </div>
-            <div className="photos">
-              {photos.map((p, i) => (
-                <div key={p.id} className="photo" style={{ background: PHOTO_TINTS[i % 3], color: PHOTO_INK[i % 3] }}>
-                  [{p.label}]
-                  {photos.length > 1 && (
-                    <button type="button" className="photo__remove" aria-label={`Remove ${p.label}`} onClick={() => removePhoto(p)}>
-                      <Icon name="x" size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {photos.length < 3 && (
-                <button type="button" className="photo photo--add" onClick={addPhoto}>
-                  <Icon name="plus" size={28} />
-                  Add photo
-                </button>
-              )}
-            </div>
+            <PhotoGrid photos={photos} ownerName={user.firstName} onChanged={refreshMe} />
           </section>
 
           <section className="card">
