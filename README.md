@@ -16,7 +16,7 @@ From our Product Requirements Document.
 
 | # | Requirement | Status | How it works in aura |
 |---|---|---|---|
-| 1 | When the user joins, the system prompts them to create a profile (personal info, photos, interests) and join or create a Friend Group. | **Not complete** | New users go through profile setup, then must create or join a group (`403 PROFILE_INCOMPLETE` until the profile is done). Photos are labeled placeholder slots (1–3 required); uploading real image files is not built yet. |
+| 1 | When the user joins, the system prompts them to create a profile (personal info, photos, interests) and join or create a Friend Group. | **Complete** | New users go through profile setup, then must create or join a group (`403 PROFILE_INCOMPLETE` until the profile is done). Profile setup includes uploading 1–3 real photos from the camera roll or computer (see [Profile Photos](#profile-photos)). |
 | 2 | When a user updates their interests, the shared Friend Group interests update automatically. | **Complete** | Group interests come from the `group_shared_interests` view (the union of members' interests), so they're never stored and change the moment a member edits theirs. |
 | 3 | A Friend Group can't have more than 10 members; adding an 11th fails with an error returned to the user. | **Complete** | The `group_member_cap` trigger rejects the insert and the API returns `409 GROUP_FULL`, shown as an error in the app (try joining Wednesday Volleyball, which is full). |
 | 4 | Users who aren't in a Friend Group get an error inviting them to create or join one before they can use the app. | **Complete** | Every group-scoped endpoint returns `403 NO_GROUP`, and the app shows the "Create or join a group" screen. |
@@ -27,7 +27,7 @@ From our Product Requirements Document.
 | 9 | Recommendations are ranked by (1) shared interests, (2) 1st- and 2nd-degree mutual connections, (3) geographic proximity. | **Complete** | Ordered by shared interests, then 1st-degree, then 2nd-degree mutual friends, then same city, then distance. Groups you already liked, passed or matched are excluded. |
 | 10 | When two groups match, a group chat is created for both groups. | **Complete** | The match, its chat and every member of both groups as participants are created in one transaction (capped at 30 people by `chat_participant_cap`). |
 
-**9 of 10 complete.**
+**10 of 10 complete.**
 
 ## Vertical Slices
 
@@ -37,7 +37,7 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 |---|---|---|---|---|
 | 1 | Sign up and sign in | **Sign up** (name, city, email, password) goes straight to profile setup; returning users use **Sign in** ("Already have an account?") | Supabase Auth, then `POST /api/users`; every request sends the session as `Authorization: Bearer` | `auth.users`, `users.auth_user_id` |
 | 2 | Profile and interests | Profile → edit bio, details and interests | `PATCH /api/me` | `users`, `user_interests` (group interests update through the `group_shared_interests` view) |
-| 3 | Profile photos | Profile → add or remove a photo (1–3, placeholder images) | `POST /api/me/photos`, `DELETE /api/me/photos/:id` | `user_photos` |
+| 3 | Profile photos | Profile (or profile setup) → **Add photo** → pick an image; it uploads with a preview and replaces the placeholder. Remove any photo but the last | `POST /api/me/photos/upload`, `DELETE /api/me/photos/:id` | `user_photos.image_url` + Supabase Storage bucket `profile-photos` |
 | 4 | Onboarding gate | A user with no group sees "Create or join a group" instead of the app | any group endpoint → `403 NO_GROUP` | `group_memberships` |
 | 5 | Create a group | Gate or Profile → **Create a group** | `POST /api/groups` | `friend_groups`, `group_memberships`, `users.active_group_id` |
 | 6 | Join with an invite code | Enter a code; a full group shows "already has 10 members" | `POST /api/groups/join` → `409 GROUP_FULL` when full | `group_memberships` (`group_member_cap` trigger) |
@@ -267,6 +267,18 @@ People can be in more than one friend group, so aura makes sure no one is ever o
 - **Accepting or connecting anyway** (for example from an old screen) is rejected with `400 OWN_GROUP`.
 
 With `npm run dev` running, `npm run verify:own-groups` checks all of this. If it has to add a test request, it removes it again, so the data is left as it was.
+
+## Profile Photos
+
+People upload 1–3 real profile photos, on the Profile page and in profile setup.
+
+- **Picking a photo.** **Add photo** opens the camera roll (or camera) on phones and the file picker on computers. JPEG, PNG and WebP up to 5 MB are accepted; iPhones convert HEIC photos to JPEG automatically. A wrong type or a file that's too big gets a clear message right away, before anything uploads.
+- **While it uploads.** The photo appears in its slot, dimmed, with a spinner and "Uploading…". When the server answers, it's replaced by the saved photo. If the upload fails, a friendly message explains why and nothing half-saved is left behind.
+- **Where it's stored.** The app sends the image file as the request body to `POST /api/me/photos/upload`. The server checks the type, size and free slot (max 3), uploads the file to the public Supabase Storage bucket `profile-photos` (path `<user id>/<random id>.<ext>`), and saves its public URL in `user_photos.image_url`. `DELETE /api/me/photos/:id` removes the row and the file. The server calls Storage's REST API with `fetch` (`server/src/lib/storage.js`), so no Supabase client library is needed.
+- **Setup.** In Supabase, create a **public** bucket named `profile-photos` (done for Find Friends App). Then set `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys → service_role) in `server/.env` locally and on the API service in Render; it uses the same `SUPABASE_URL` as sign-in. The service_role key is secret: never commit it or put it in the client. Without these settings, uploads answer `503 UPLOADS_NOT_SET_UP` and the rest of the app keeps working.
+- **Accessibility.** Each photo has alt text ("Avery's photo 1"), the upload status is announced (`role="status"`), errors use `role="alert"`, and the remove buttons are labeled. Lighthouse Accessibility on Profile is 100 on phone and desktop with real photos.
+
+**Try it by hand.** Sign in as anyone, open Profile, remove a placeholder, then **Add photo** and pick an image. It shows "Uploading…", then your photo. In Supabase → Storage → `profile-photos` you'll see the file in a folder named after the user's id, and in the `user_photos` table its `image_url`.
 
 ## Read Receipts
 
