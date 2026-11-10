@@ -13,6 +13,8 @@ const FRIENDLY = {
   LIKE_NOT_FOUND: 'That request is no longer available.',
   NOT_SIGNED_IN: 'Sign in to keep going.',
   SESSION_EXPIRED: 'You were signed out. Sign in again to keep going.',
+  UPLOADS_NOT_SET_UP: "Photo uploads aren't available right now. Try again later.",
+  UPLOAD_FAILED: "We couldn't save your photo. Try again.",
 };
 
 export function friendlyError(err) {
