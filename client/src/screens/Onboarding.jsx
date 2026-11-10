@@ -26,7 +26,7 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
 
   return (
     <div className="gate">
-      <div className="steps" aria-label="Step 1 of 2"><span className="on" /><span /></div>
+      <div className="steps" role="img" aria-label="Step 1 of 2"><span className="on" /><span /></div>
       <h1 className="page-title" style={{ fontSize: 34 }}>Build your profile</h1>
       <p className="subtle">This profile is about you. Groups come next, so people can meet the real person behind the group.</p>
       {missing.length > 0 && (
@@ -74,7 +74,7 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
   if (createdGroup) {
     return (
       <div className="gate">
-        <div className="steps" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
+        <div className="steps" role="img" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
         <h1 className="page-title" style={{ fontSize: 34 }}>Invite your friends</h1>
         <p className="subtle">Your group is ready. Share the code or link before you start finding other groups.</p>
         <section className="card">
@@ -85,13 +85,15 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
     );
   }
   const onDone = async (group, tab) => {
+    // After creating a group, show the invite screen first. Refreshing `me` now would
+    // leave onboarding (the user has a group), so "Continue to aura" does it instead.
+    if (tab === 'create') return setCreatedGroup(group);
     await refreshMe();
-    if (tab === 'join') window.location.hash = '#/find';
-    else setCreatedGroup(group);
+    window.location.hash = '#/find';
   };
   return (
     <div className="gate">
-      <div className="steps" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
+      <div className="steps" role="img" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
       <h1 className="page-title" style={{ fontSize: 34 }}>{inviteCode ? 'Join your friend group' : 'One more thing'}</h1>
       <div className="gate-error" role="alert" style={{ marginTop: 16 }}>
         <Icon name="users" />
