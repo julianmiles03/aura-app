@@ -13,7 +13,8 @@ export class ApiError extends Error {
   }
 }
 
-export async function api(path, { method = 'GET', body } = {}) {
+// Pass `file` (a File from an <input type="file">) to send it as the raw request body, e.g. a photo upload.
+export async function api(path, { method = 'GET', body, file } = {}) {
   // getSession() refreshes the access token first when it's about to expire.
   const { data: { session } } = await supabase.auth.getSession();
   let res;
@@ -21,10 +22,10 @@ export async function api(path, { method = 'GET', body } = {}) {
     res = await fetch(`${API_BASE}/api${path}`, {
       method,
       headers: {
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(file ? { 'Content-Type': file.type } : body !== undefined && { 'Content-Type': 'application/json' }),
         ...(session && { Authorization: `Bearer ${session.access_token}` }),
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: file ?? (body !== undefined ? JSON.stringify(body) : undefined),
     });
   } catch {
     const hint = API_BASE ? 'It may be waking up; try again in a minute.' : 'Is `npm run dev` running?';
