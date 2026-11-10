@@ -15,6 +15,10 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false # paste the Session pooler URI in the dashboard; never commit it
+      - key: SUPABASE_URL
+        sync: false # Project Settings > API > Project URL (for profile photo uploads)
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false # Project Settings > API > service_role key; secret, never commit it
       - key: CORS_ORIGIN
         value: https://aura-is401.onrender.com
       - key: NODE_VERSION
