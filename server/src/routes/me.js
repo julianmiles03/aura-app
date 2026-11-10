@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { pool, query, withTransaction } from '../db.js';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { loadChatRows } from '../lib/chats.js';
 import { userInitials } from '../lib/format.js';
 import { loadGroupCards } from '../lib/groups.js';
 import { getOnboarding } from '../lib/profile.js';
+import { PHOTO_MAX_BYTES, PHOTO_TYPES, removePhoto, savePhoto } from '../lib/storage.js';
 import { parseId, readInt, readText, readTextList } from '../lib/validate.js';
 
 const router = Router();
@@ -143,6 +144,35 @@ router.post('/me/photos', async (req, res) => {
   res.status(201).json({ photo: { id: photo.id, position: photo.position, label: photo.label, imageUrl: photo.image_url } });
 });
 
+// Real photo upload: the request body is the image file itself (JPEG, PNG or WebP, up to 5 MB).
+router.post('/me/photos/upload', express.raw({ type: Object.keys(PHOTO_TYPES), limit: PHOTO_MAX_BYTES }), async (req, res) => {
+  const contentType = req.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+  if (!PHOTO_TYPES[contentType] || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+    throw badRequest('INVALID_PHOTO', 'Choose a JPEG, PNG or WebP image.');
+  }
+  // Find a free slot first, so a 4th photo is rejected before anything is uploaded.
+  const { rows: [slot] } = await query(
+    `SELECT p FROM generate_series(1, 3) AS p
+     WHERE NOT EXISTS (SELECT 1 FROM user_photos WHERE user_id = $1 AND position = p)
+     ORDER BY p LIMIT 1`,
+    [req.user.id],
+  );
+  if (!slot) throw conflict('PHOTO_LIMIT', 'You can have at most 3 photos.');
+
+  const imageUrl = await savePhoto(req.user.id, req.body, contentType);
+  try {
+    const { rows: [photo] } = await query(
+      `INSERT INTO user_photos (user_id, position, label, image_url) VALUES ($1, $2, $3, $4)
+       RETURNING id, position, label, image_url`,
+      [req.user.id, slot.p, `Photo ${slot.p}`, imageUrl],
+    );
+    res.status(201).json({ photo: { id: photo.id, position: photo.position, label: photo.label, imageUrl: photo.image_url } });
+  } catch (err) {
+    await removePhoto(imageUrl); // the row didn't save (e.g. two uploads raced), so drop the file too
+    throw err;
+  }
+});
+
 router.delete('/me/photos/:id', async (req, res) => {
   const photoId = parseId(req.params.id, 'photo id');
   const { rows: [counts] } = await query(
@@ -152,7 +182,11 @@ router.delete('/me/photos/:id', async (req, res) => {
   );
   if (!counts.mine) throw notFound('PHOTO_NOT_FOUND', 'That photo does not exist.');
   if (counts.total <= 1) throw conflict('PHOTO_REQUIRED', 'Keep at least one photo on your profile.');
-  await query('DELETE FROM user_photos WHERE id = $1 AND user_id = $2', [photoId, req.user.id]);
+  const { rows: [removed] } = await query(
+    'DELETE FROM user_photos WHERE id = $1 AND user_id = $2 RETURNING image_url',
+    [photoId, req.user.id],
+  );
+  await removePhoto(removed?.image_url);
   res.status(204).end();
 });
 
