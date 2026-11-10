@@ -39,6 +39,9 @@ export function errorHandler(err, req, res, next) {
   if (!apiError && err.type === 'entity.parse.failed') {
     apiError = badRequest('INVALID_JSON', 'Request body is not valid JSON.');
   }
+  if (!apiError && err.type === 'entity.too.large') {
+    apiError = new ApiError(413, 'TOO_LARGE', 'That file is too big. Photos can be up to 5 MB.');
+  }
   if (!apiError) {
     console.error(err);
     apiError = new ApiError(500, 'INTERNAL_ERROR', 'Something went wrong on our end.');

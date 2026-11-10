@@ -656,6 +656,22 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
   justify-content: center;
   gap: 4px;
 }
+.photo { overflow: hidden; }
+.photo__img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.photo__remove { z-index: 1; }
+.photo--uploading .photo__img { opacity: 0.55; }
+.photo__status {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.photo-error { margin-top: 10px; }
+.photo-hint { margin: 8px 0 0; }
 .photo__remove {
   position: absolute;
   top: 6px;
