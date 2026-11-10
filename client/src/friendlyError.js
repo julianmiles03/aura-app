@@ -11,6 +11,8 @@ const FRIENDLY = {
   CHAT_NOT_FOUND: "This chat doesn't exist anymore.",
   ALREADY_MATCHED: "You're already matched with this group. Look for your chat with them below.",
   LIKE_NOT_FOUND: 'That request is no longer available.',
+  UPLOADS_NOT_SET_UP: "Photo uploads aren't available right now. Try again later.",
+  UPLOAD_FAILED: "We couldn't save your photo. Try again.",
 };
 
 export function friendlyError(err) {

@@ -35,16 +35,17 @@ export function setApiUser(id) {
   currentUserId = id;
 }
 
-export async function api(path, { method = 'GET', body } = {}) {
+// Pass `file` (a File from an <input type="file">) to send it as the raw request body, e.g. a photo upload.
+export async function api(path, { method = 'GET', body, file } = {}) {
   let res;
   try {
     res = await fetch(`${API_BASE}/api${path}`, {
       method,
       headers: {
-        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(file ? { 'Content-Type': file.type } : body !== undefined && { 'Content-Type': 'application/json' }),
         ...(currentUserId && { 'X-User-Id': String(currentUserId) }),
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: file ?? (body !== undefined ? JSON.stringify(body) : undefined),
     });
   } catch {
     const hint = API_BASE ? 'It may be waking up; try again in a minute.' : 'Is `npm run dev` running?';
