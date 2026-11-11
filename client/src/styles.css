@@ -80,7 +80,7 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
   letter-spacing: -0.04em;
   line-height: 1;
 }
-.flame-mark { height: 0.86em; width: auto; flex: none; transform: translateY(-0.04em); }
+.flame-mark { height: 0.86em; width: 0.86em; flex: none; border-radius: 0.24em; object-fit: cover; object-position: center; transform: translateY(-0.04em); box-shadow: 0 0.08em 0.22em rgba(76, 25, 180, 0.2); }
 .subtle { color: var(--muted); }
 .section-label {
   font-size: 13px;
