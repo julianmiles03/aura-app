@@ -2,7 +2,7 @@ import express, { Router } from 'express';
 import { pool, query, withTransaction } from '../db.js';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { loadChatRows } from '../lib/chats.js';
-import { userInitials } from '../lib/format.js';
+import { MAIN_PHOTO_SQL, userInitials } from '../lib/format.js';
 import { loadGroupCards } from '../lib/groups.js';
 import { getOnboarding } from '../lib/profile.js';
 import { PHOTO_MAX_BYTES, PHOTO_TYPES, removePhoto, savePhoto } from '../lib/storage.js';
@@ -128,20 +128,26 @@ router.patch('/me/active-group', async (req, res) => {
   res.json({ activeGroupId: rows[0].active_group_id });
 });
 
-// Photos are labeled placeholders in the prototype: adding one fills the next free slot (max 3).
+// Photos: position 1 is the main photo (big at the top of the profile, and the person's avatar
+// everywhere else), positions 2-4 are the 3 more shown under it. The first photo added becomes main.
+const MAX_PHOTOS = 4;
+const PHOTO_LIMIT_MESSAGE = 'You can have 1 main photo and 3 more.';
+const photoJson = (p) => ({ id: p.id, position: p.position, label: p.label, imageUrl: p.image_url });
+const freeSlotSql = `SELECT p FROM generate_series(1, ${MAX_PHOTOS}) AS p
+  WHERE NOT EXISTS (SELECT 1 FROM user_photos WHERE user_id = $1 AND position = p)
+  ORDER BY p LIMIT 1`;
+
+// Labeled placeholder photo (the prototype's; kept for the demo data): fills the next free slot.
 router.post('/me/photos', async (req, res) => {
   const label = readText(req.body.label, 'Label', { max: 60 });
   const { rows: [photo] } = await query(
     `INSERT INTO user_photos (user_id, position, label)
-     SELECT $1, p, coalesce($2, 'Photo ' || p)
-     FROM generate_series(1, 3) AS p
-     WHERE NOT EXISTS (SELECT 1 FROM user_photos WHERE user_id = $1 AND position = p)
-     ORDER BY p LIMIT 1
+     SELECT $1, slot.p, coalesce($2, 'Photo ' || slot.p) FROM (${freeSlotSql}) slot
      RETURNING id, position, label, image_url`,
     [req.user.id, label ?? null],
   );
-  if (!photo) throw conflict('PHOTO_LIMIT', 'You can have at most 3 photos.');
-  res.status(201).json({ photo: { id: photo.id, position: photo.position, label: photo.label, imageUrl: photo.image_url } });
+  if (!photo) throw conflict('PHOTO_LIMIT', PHOTO_LIMIT_MESSAGE);
+  res.status(201).json({ photo: photoJson(photo) });
 });
 
 // Real photo upload: the request body is the image file itself (JPEG, PNG or WebP, up to 5 MB).
@@ -150,14 +156,9 @@ router.post('/me/photos/upload', express.raw({ type: Object.keys(PHOTO_TYPES), l
   if (!PHOTO_TYPES[contentType] || !Buffer.isBuffer(req.body) || req.body.length === 0) {
     throw badRequest('INVALID_PHOTO', 'Choose a JPEG, PNG or WebP image.');
   }
-  // Find a free slot first, so a 4th photo is rejected before anything is uploaded.
-  const { rows: [slot] } = await query(
-    `SELECT p FROM generate_series(1, 3) AS p
-     WHERE NOT EXISTS (SELECT 1 FROM user_photos WHERE user_id = $1 AND position = p)
-     ORDER BY p LIMIT 1`,
-    [req.user.id],
-  );
-  if (!slot) throw conflict('PHOTO_LIMIT', 'You can have at most 3 photos.');
+  // Find a free slot first, so a 5th photo is rejected before anything is uploaded.
+  const { rows: [slot] } = await query(freeSlotSql, [req.user.id]);
+  if (!slot) throw conflict('PHOTO_LIMIT', PHOTO_LIMIT_MESSAGE);
 
   const imageUrl = await savePhoto(req.user.id, req.body, contentType);
   try {
@@ -166,26 +167,50 @@ router.post('/me/photos/upload', express.raw({ type: Object.keys(PHOTO_TYPES), l
        RETURNING id, position, label, image_url`,
       [req.user.id, slot.p, `Photo ${slot.p}`, imageUrl],
     );
-    res.status(201).json({ photo: { id: photo.id, position: photo.position, label: photo.label, imageUrl: photo.image_url } });
+    res.status(201).json({ photo: photoJson(photo) });
   } catch (err) {
     await removePhoto(imageUrl); // the row didn't save (e.g. two uploads raced), so drop the file too
     throw err;
   }
 });
 
-router.delete('/me/photos/:id', async (req, res) => {
+// "Make main": the chosen photo and the current main photo swap places. The unique
+// (user_id, position) is DEFERRABLE, so the swap is checked at the end of the UPDATE.
+router.post('/me/photos/:id/main', async (req, res) => {
   const photoId = parseId(req.params.id, 'photo id');
-  const { rows: [counts] } = await query(
-    `SELECT count(*) AS total, count(*) FILTER (WHERE id = $2) AS mine
-     FROM user_photos WHERE user_id = $1`,
+  const { rowCount } = await query(
+    `WITH target AS (SELECT position FROM user_photos WHERE id = $2 AND user_id = $1)
+     UPDATE user_photos SET position = CASE WHEN id = $2 THEN 1 ELSE (SELECT position FROM target) END
+     WHERE user_id = $1 AND EXISTS (SELECT 1 FROM target) AND (id = $2 OR position = 1)`,
     [req.user.id, photoId],
   );
-  if (!counts.mine) throw notFound('PHOTO_NOT_FOUND', 'That photo does not exist.');
-  if (counts.total <= 1) throw conflict('PHOTO_REQUIRED', 'Keep at least one photo on your profile.');
-  const { rows: [removed] } = await query(
-    'DELETE FROM user_photos WHERE id = $1 AND user_id = $2 RETURNING image_url',
-    [photoId, req.user.id],
-  );
+  if (!rowCount) throw notFound('PHOTO_NOT_FOUND', 'That photo does not exist.');
+  res.json(await loadMe(req.user.id));
+});
+
+// Removing a photo closes the gap, so if the main photo goes, the next one becomes main.
+router.delete('/me/photos/:id', async (req, res) => {
+  const photoId = parseId(req.params.id, 'photo id');
+  const removed = await withTransaction(async (db) => {
+    const { rows: [counts] } = await db.query(
+      `SELECT count(*) AS total, count(*) FILTER (WHERE id = $2) AS mine
+       FROM user_photos WHERE user_id = $1`,
+      [req.user.id, photoId],
+    );
+    if (!Number(counts.mine)) throw notFound('PHOTO_NOT_FOUND', 'That photo does not exist.');
+    if (counts.total <= 1) throw conflict('PHOTO_REQUIRED', 'Keep at least one photo on your profile.');
+    const { rows: [row] } = await db.query(
+      'DELETE FROM user_photos WHERE id = $1 AND user_id = $2 RETURNING image_url',
+      [photoId, req.user.id],
+    );
+    await db.query(
+      `UPDATE user_photos p SET position = r.n
+       FROM (SELECT id, row_number() OVER (ORDER BY position) AS n FROM user_photos WHERE user_id = $1) r
+       WHERE p.id = r.id AND p.position <> r.n`,
+      [req.user.id],
+    );
+    return row;
+  });
   await removePhoto(removed?.image_url);
   res.status(204).end();
 });
@@ -193,7 +218,7 @@ router.delete('/me/photos/:id', async (req, res) => {
 // Friends, for "Invite friends".
 router.get('/me/friends', async (req, res) => {
   const { rows } = await query(
-    `SELECT u.id, u.first_name, u.last_name, u.avatar_color,
+    `SELECT u.id, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url,
             ARRAY(SELECT group_id FROM group_memberships WHERE user_id = u.id)::int[] AS group_ids
      FROM friendships f
      JOIN users u ON u.id = CASE WHEN f.user_low_id = $1 THEN f.user_high_id ELSE f.user_low_id END
@@ -208,6 +233,7 @@ router.get('/me/friends', async (req, res) => {
       lastName: u.last_name,
       initials: userInitials(u.first_name, u.last_name),
       avatarColor: u.avatar_color,
+      photoUrl: u.photo_url,
       groupIds: u.group_ids,
     })),
   });

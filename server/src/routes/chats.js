@@ -3,7 +3,7 @@ import { pool, query } from '../db.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { actingGroupId, requireGroup } from '../middleware/auth.js';
 import { loadChatRows } from '../lib/chats.js';
-import { userInitials } from '../lib/format.js';
+import { MAIN_PHOTO_SQL, userInitials } from '../lib/format.js';
 import { loadSuggestions, markSuggestionUsed } from '../lib/suggestions.js';
 import { parseId, readMessage } from '../lib/validate.js';
 
@@ -42,6 +42,7 @@ const formatMessage = (m, userId) => ({
         firstName: m.first_name,
         initials: userInitials(m.first_name, m.last_name),
         avatarColor: m.avatar_color,
+        photoUrl: m.photo_url,
       }
     : null,
 });
@@ -57,7 +58,7 @@ const TYPING_MS = 5000;
 //   out by the database clock so the browser's clock doesn't matter).
 async function loadOthers(chatId, userId) {
   const { rows } = await query(
-    `SELECT u.id, u.first_name, u.last_name, u.avatar_color,
+    `SELECT u.id, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url,
             CASE WHEN cp.last_read_at > cp.joined_at THEN last_read.id END AS read_message_id,
             CASE WHEN cp.typing_at > now() - $3 * interval '1 millisecond'
                  THEN ceil($3 - extract(epoch FROM now() - cp.typing_at) * 1000)::int END AS typing_ms_left
@@ -71,7 +72,7 @@ async function loadOthers(chatId, userId) {
      ORDER BY u.first_name, u.id`,
     [chatId, userId, TYPING_MS],
   );
-  const person = (r) => ({ id: r.id, firstName: r.first_name, initials: userInitials(r.first_name, r.last_name), avatarColor: r.avatar_color });
+  const person = (r) => ({ id: r.id, firstName: r.first_name, initials: userInitials(r.first_name, r.last_name), avatarColor: r.avatar_color, photoUrl: r.photo_url });
   return {
     reads: rows.filter((r) => r.read_message_id).map((r) => ({ messageId: r.read_message_id, user: person(r) })),
     typing: rows.filter((r) => r.typing_ms_left > 0).map((r) => ({ msLeft: r.typing_ms_left, user: person(r) })),
@@ -87,7 +88,7 @@ async function newerMessages(chatId, userId, rawAfter) {
   await participantGroup(chatId, userId);
   const [{ rows }, others, openers] = await Promise.all([query(
     `WITH newer AS (
-       SELECT m.id, m.body, m.created_at, m.sender_user_id, u.first_name, u.last_name, u.avatar_color
+       SELECT m.id, m.body, m.created_at, m.sender_user_id, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url
        FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
        WHERE m.chat_id = $1 AND m.id > $3 ORDER BY m.id LIMIT 201),
      mark_read AS (
@@ -109,14 +110,14 @@ router.get('/chats/:id/messages', requireGroup, async (req, res) => {
     loadChatRows(pool, req.user.id, myGroupId, { chatIds: [chatId], view: 'any' }),
     query(
       `SELECT * FROM (
-         SELECT m.id, m.body, m.created_at, m.sender_user_id, u.first_name, u.last_name, u.avatar_color
+         SELECT m.id, m.body, m.created_at, m.sender_user_id, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url
          FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
          WHERE m.chat_id = $1 ORDER BY m.created_at DESC, m.id DESC LIMIT 200) recent
        ORDER BY created_at, id`,
       [chatId],
     ),
     query(
-      `SELECT u.id, u.first_name, u.last_name, u.avatar_color, cp.group_id
+      `SELECT u.id, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url, cp.group_id
        FROM chat_participants cp JOIN users u ON u.id = cp.user_id
        WHERE cp.chat_id = $1 ORDER BY cp.group_id = $2 DESC, u.first_name`,
       [chatId, myGroupId],
@@ -135,6 +136,7 @@ router.get('/chats/:id/messages', requireGroup, async (req, res) => {
       lastName: p.last_name,
       initials: userInitials(p.first_name, p.last_name),
       avatarColor: p.avatar_color,
+      photoUrl: p.photo_url,
       groupId: p.group_id,
     })),
     messages: messages.rows.map((m) => formatMessage(m, req.user.id)),
@@ -154,7 +156,7 @@ router.post('/chats/:id/messages', requireGroup, async (req, res) => {
     `WITH inserted AS (
        INSERT INTO messages (chat_id, sender_user_id, body) VALUES ($1, $2, $3)
        RETURNING id, body, created_at, sender_user_id)
-     SELECT i.*, u.first_name, u.last_name, u.avatar_color
+     SELECT i.*, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url
      FROM inserted i JOIN users u ON u.id = i.sender_user_id`,
     [chatId, req.user.id, body],
   );
