@@ -99,6 +99,7 @@ export function EditProfileForm({ me, onSaved }) {
 export function AddInterestForm({ current, onAdd }) {
   const [all, setAll] = useState([]);
   const [text, setText] = useState('');
+  const [showAll, setShowAll] = useState(false); // 8 suggestions, then "More"
   const { busy, error, run } = useAsyncAction();
   useEffect(() => {
     api('/interests').then((d) => setAll(d.interests)).catch(() => {});
@@ -114,11 +115,14 @@ export function AddInterestForm({ current, onAdd }) {
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Pickleball" maxLength={40} />
       </Field>
       <div className="chips" style={{ marginBottom: 16 }}>
-        {suggestions.slice(0, 14).map((i) => (
+        {suggestions.slice(0, showAll || q ? 30 : 8).map((i) => (
           <button key={i.id} type="button" className="chip chip--gray" disabled={busy} onClick={() => add(i.name)}>
             + {i.name}
           </button>
         ))}
+        {!showAll && !q && suggestions.length > 8 && (
+          <button type="button" className="chip chip--dashed" onClick={() => setShowAll(true)}>More</button>
+        )}
       </div>
       <button className="btn btn--primary btn--block" disabled={busy || !q}>
         {busy ? 'Adding…' : q ? `Add "${text.trim()}"` : 'Type or pick an interest'}
