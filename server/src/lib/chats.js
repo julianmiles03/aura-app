@@ -11,8 +11,8 @@ const VIEW_FILTER = {
 export async function loadChatRows(db, userId, myGroupId, { view = 'inbox', chatIds = null } = {}) {
   const { rows } = await db.query(
     `SELECT c.id, c.created_at, cp.archived_at, cp.deleted_at,
-            mine.id AS my_id, mine.name AS my_name, mine.avatar_color AS my_color, mine.photo_url AS my_photo,
-            other.id AS other_id, other.name AS other_name, other.avatar_color AS other_color, other.photo_url AS other_photo,
+            mine.id AS my_id, mine.name AS my_name, mine.avatar_color AS my_color, to_jsonb(mine) ->> 'photo_url' AS my_photo,
+            other.id AS other_id, other.name AS other_name, other.avatar_color AS other_color, to_jsonb(other) ->> 'photo_url' AS other_photo,
             (SELECT count(*) FROM chat_participants x WHERE x.chat_id = c.id) AS people_count,
             (SELECT count(*) FROM messages m
               WHERE m.chat_id = c.id AND m.created_at > cp.last_read_at
