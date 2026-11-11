@@ -5,10 +5,14 @@ import PhotoGrid from '../components/PhotoGrid.jsx';
 import { AddInterestForm, CreateOrJoinForm, InviteFriends, ProfileFields, profileFormValue, profilePatch } from '../components/forms.jsx';
 import { FormError, useAsyncAction } from '../components/ui.jsx';
 
-const MISSING_LABELS = {
-  bio: 'a bio', photos: 'at least 1 photo', interests: 'at least 1 interest', age: 'your age',
-  gender: 'gender', relationshipStatus: 'relationship status', personalityTraits: 'a personality trait',
-};
+// What a complete profile needs, as a checklist that ticks off as you go (server: me.onboarding.missing).
+const CHECKLIST = [
+  { label: 'A photo', fields: ['photos'] },
+  { label: 'An interest', fields: ['interests'] },
+  { label: 'A short bio', fields: ['bio'] },
+  { label: 'Age, gender and relationship status', fields: ['age', 'gender', 'relationshipStatus'] },
+  { label: 'A personality trait', fields: ['personalityTraits'] },
+];
 
 // Step 1: build the profile (rule 1).
 export function ProfileSetup({ me, setMe, refreshMe }) {
@@ -28,23 +32,27 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
     <div className="gate">
       <div className="steps" role="img" aria-label="Step 1 of 2"><span className="on" /><span /></div>
       <h1 className="page-title" style={{ fontSize: 34 }}>Build your profile</h1>
-      <p className="subtle">This profile is about you. Groups come next, so people can meet the real person behind the group.</p>
-      {missing.length > 0 && (
-        <div className="gate-error" role="status">
-          <Icon name="profile" />
-          <span>Still needed: {missing.map((m) => MISSING_LABELS[m]).join(', ')}.</span>
-        </div>
-      )}
+      <p className="subtle">This profile is about you. Groups come next.</p>
+      <ul className="checklist" aria-label="Your profile checklist">
+        {CHECKLIST.map((item) => {
+          const done = item.fields.every((f) => !missing.includes(f));
+          return (
+            <li key={item.label} className={done ? 'checklist__done' : ''}>
+              <span className="checklist__box" aria-hidden="true">{done && <Icon name="check" size={14} strokeWidth={3} />}</span>
+              {item.label}<span className="sr-only">{done ? ' (done)' : ' (to do)'}</span>
+            </li>
+          );
+        })}
+      </ul>
 
       <section className="card">
         <h2 className="card__title">Photos</h2>
-        <p className="hint photos__intro">Add a main photo so other groups know who they may meet, plus up to 3 more.</p>
+        <p className="hint photos__intro">A main photo, plus up to 3 more.</p>
         <PhotoGrid photos={me.photos} ownerName={me.user.firstName} ownerId={me.user.id} avatarColor={me.user.avatarColor} onChanged={refreshMe} />
       </section>
 
       <section className="card">
         <h2 className="card__title">Interests</h2>
-        <p className="hint">These interests roll up into your group’s shared interests.</p>
         {me.interests.length > 0 && (
           <div className="chips" style={{ marginBottom: 14 }}>
             {me.interests.map((i) => <span key={i.id} className="chip">{i.name}</span>)}

@@ -28,6 +28,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
   const [error, setError] = useState(null);
   const [pending, setPending] = useState(null); // { id, action } while a request is being answered
   const [selected, setSelected] = useState(() => new Set());
+  const [editing, setEditing] = useState(false); // select / archive / delete live behind one "Edit" button
   const [newChatId, setNewChatId] = useState(null);
   const listVersion = useRef(0); // bumped by changes made here, so an in-flight refresh can't undo them
 
@@ -49,6 +50,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
   useEffect(() => {
     setChats(null);
     setSelected(new Set());
+    setEditing(false);
     load();
   }, [load]);
 
@@ -115,7 +117,8 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
 
   const loading = !chats && !error;
   const likePlaceholders = likeCounts.get(groupId) ?? 1;
-  const selecting = selected.size > 0;
+  const selecting = editing;
+  const stopEditing = () => { setEditing(false); setSelected(new Set()); };
   const allSelected = chats?.length > 0 && selected.size === chats.length;
   const toggle = (id) => setSelected((s) => {
     const next = new Set(s);
@@ -130,7 +133,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
       await api('/chats/bulk', { method: 'POST', body: { action, chatIds: ids } });
       listVersion.current += 1;
       setChats((cs) => cs.filter((c) => !selected.has(c.id)));
-      setSelected(new Set());
+      stopEditing();
       toast(`${plural(ids.length, 'chat')} ${verb}.`);
       refreshMe();
     } catch (err) {
@@ -180,9 +183,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
           <h2 className="likes-box__title">{likesTitle(likes.length, activeGroup?.name)}</h2>
           {likes.map((like) => {
             const g = like.group;
-            const extra = g.stats?.mutualFriends
-              ? plural(g.stats.mutualFriends, 'mutual friend')
-              : plural(g.stats?.sharedInterestCount ?? 0, 'shared interest');
+            const extra = g.stats?.mutualFriends ? `${g.stats.mutualFriends} mutual` : `${g.stats?.sharedInterestCount ?? 0} shared`;
             const busy = pending?.id === like.id;
             const accepting = busy && pending.action === 'accept';
             return (
@@ -190,7 +191,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
                 <Avatar initials={g.initials} color={g.avatarColor} size={48} shape="square" src={g.photoUrl} />
                 <div className="like-row__info">
                   <div className="like-row__name">{g.name}</div>
-                  <div className="like-row__meta">{plural(g.memberCount, 'member')} · {extra}</div>
+                  <div className="like-row__meta">{plural(g.memberCount, 'person', 'people')} · {extra}</div>
                 </div>
                 <div className="like-row__actions">
                   <button type="button" className="icon-btn icon-btn--square" aria-label={`Decline ${g.name}`} disabled={busy} onClick={() => decline(like)}>
@@ -224,40 +225,35 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
 
       <div className="chats-head">
         <h2 className="section-label">{view === 'inbox' ? 'Chats' : VIEW_TITLES[view]}</h2>
-        {chats?.length > 0 && (
-          <button type="button" className="link-btn" onClick={() => setSelected(allSelected ? new Set() : new Set(chats.map((c) => c.id)))}>
-            {allSelected ? 'Clear' : 'Select all'}
-          </button>
-        )}
-        {view === 'inbox' && (
+        {editing ? (
           <>
-            <button
-              type="button"
-              className="icon-btn icon-btn--plain"
-              aria-label={selecting ? 'Archive selected chats' : 'Show archived chats'}
-              title={selecting ? 'Archive selected' : 'Archived chats'}
-              onClick={() => (selecting ? bulk('archive', 'archived') : setView('archived'))}
-            >
-              <Icon name="archive" />
+            <button type="button" className="link-btn" onClick={() => setSelected(allSelected ? new Set() : new Set(chats.map((c) => c.id)))}>
+              {allSelected ? 'Clear' : 'Select all'}
             </button>
-            <button
-              type="button"
-              className="icon-btn icon-btn--plain"
-              aria-label={selecting ? 'Delete selected chats' : 'Show recently deleted chats'}
-              title={selecting ? 'Delete selected' : 'Recently deleted'}
-              onClick={() => (selecting ? bulk('delete', 'moved to Recently deleted') : setView('deleted'))}
-            >
-              <Icon name="trash" />
-            </button>
+            {view === 'inbox' && (
+              <>
+                <button type="button" className="icon-btn icon-btn--plain" aria-label="Archive selected chats" title="Archive selected"
+                  disabled={!selected.size} onClick={() => bulk('archive', 'archived')}>
+                  <Icon name="archive" />
+                </button>
+                <button type="button" className="icon-btn icon-btn--plain" aria-label="Delete selected chats" title="Delete selected"
+                  disabled={!selected.size} onClick={() => bulk('delete', 'moved to Recently deleted')}>
+                  <Icon name="trash" />
+                </button>
+              </>
+            )}
+            {view === 'archived' && (
+              <button type="button" className="btn btn--sm btn--soft" disabled={!selected.size} onClick={() => bulk('unarchive', 'moved back to Chats')}>Unarchive</button>
+            )}
+            {view === 'deleted' && (
+              <button type="button" className="btn btn--sm btn--soft" disabled={!selected.size} onClick={() => bulk('restore', 'restored')}>
+                <Icon name="restore" size={18} /> Restore
+              </button>
+            )}
+            <button type="button" className="link-btn chats-head__done" onClick={stopEditing}>Done</button>
           </>
-        )}
-        {view === 'archived' && selecting && (
-          <button type="button" className="btn btn--sm btn--soft" onClick={() => bulk('unarchive', 'moved back to Chats')}>Unarchive</button>
-        )}
-        {view === 'deleted' && selecting && (
-          <button type="button" className="btn btn--sm btn--soft" onClick={() => bulk('restore', 'restored')}>
-            <Icon name="restore" size={18} /> Restore
-          </button>
+        ) : (
+          chats?.length > 0 && <button type="button" className="link-btn" onClick={() => setEditing(true)}>Edit</button>
         )}
       </div>
 
@@ -289,6 +285,13 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
             />
           ))}
         </div>
+      )}
+      {view === 'inbox' && !editing && (
+        <p className="chats-more">
+          <button type="button" className="link-btn" onClick={() => setView('archived')}>Archived</button>
+          <span aria-hidden="true">·</span>
+          <button type="button" className="link-btn" onClick={() => setView('deleted')}>Recently deleted</button>
+        </p>
       )}
     </div>
   );
@@ -335,7 +338,7 @@ function ChatRow({ chat, isNew, isOpen, selecting, selected, onToggle }) {
           {selected && <Icon name="check" size={16} strokeWidth={3} />}
         </span>
       )}
-      <GroupPair mine={chat.myGroup} other={chat.otherGroup} size={46} />
+      <GroupPair mine={chat.myGroup} other={chat.otherGroup} size={40} />
       <span className="chat-row__main">
         <span className="chat-row__top">
           <span className="chat-row__name">{chat.name}</span>
@@ -345,7 +348,6 @@ function ChatRow({ chat, isNew, isOpen, selecting, selected, onToggle }) {
           <span className={`chat-row__last ${last ? '' : 'chat-row__last--new'}`}>{preview}</span>
           {chat.unreadCount > 0 && !isOpen && <span className="count-dot" aria-label={`${chat.unreadCount} unread`}>{chat.unreadCount}</span>}
         </span>
-        <span className="chat-row__people" style={{ display: 'block' }}>{plural(chat.peopleCount, 'person', 'people')}</span>
       </span>
     </button>
   );
@@ -381,7 +383,7 @@ function ChatListSkeleton() {
     <div className="chat-list" aria-busy="true">
       {CHAT_PLACEHOLDERS.map(([name, preview], i) => (
         <div key={i} className="chat-row chat-row--skeleton">
-          <GroupPairSkeleton size={46} />
+          <GroupPairSkeleton size={40} />
           <span className="chat-row__main">
             <span className="chat-row__top">
               <Skeleton text={17} width={name} />

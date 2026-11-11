@@ -7,7 +7,6 @@ import Icon from '../components/Icon.jsx';
 import { Loader } from '../components/Loading.jsx';
 import SwipeCard from '../components/SwipeCard.jsx';
 import { useToast } from '../components/ui.jsx';
-import { plural } from '../format.js';
 import MemberProfile from '../components/MemberProfile.jsx';
 import { Sheet } from '../components/ui.jsx';
 import FlameMark from '../components/FlameMark.jsx';
@@ -99,16 +98,10 @@ export default function FindScreen({ me, onSwitchGroup, refreshMe, isDesktop = f
 
       {data && (
         <>
-          <p className="match-sub">
-            {plural(data.total, 'group')} near you {data.total === 1 ? 'matches' : 'match'} {data.actingGroup.name}
-          </p>
-          <div className="acting-note">
-            <p>
-              You're choosing for <strong>{data.actingGroup.name}</strong>. Connect means your group wants to meet
-              theirs, not that you join it.
-            </p>
+          <p className="find-for">
+            <span>For <strong>{data.actingGroup.name}</strong></span>
             <button type="button" className="link-btn" onClick={() => setExplainerOpen(true)}>How it works</button>
-          </div>
+          </p>
           {current ? (
             <>
               <SwipeCard key={current.id} onSwipe={decide} disabled={busy || explainerOpen}>
