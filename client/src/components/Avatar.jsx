@@ -52,12 +52,12 @@ export function AvatarStack({ people, size = 34, max = 6 }) {
   );
 }
 
-// Two group avatars, overlapped (chat rows and chat header).
+// Two group avatars, overlapped (chat rows and chat header): the group photo when there is one.
 export function GroupPair({ mine, other, size = 44 }) {
   return (
     <span className="group-pair" style={{ width: size * 1.35, height: size * 1.35 }}>
-      <Avatar initials={mine.initials} size={size} shape="square" solid className="group-pair__back" />
-      <Avatar initials={other.initials} color={other.avatarColor} size={size} shape="square" className="group-pair__front" />
+      <Avatar initials={mine.initials} size={size} shape="square" solid className="group-pair__back" src={mine.photoUrl} />
+      <Avatar initials={other.initials} color={other.avatarColor} size={size} shape="square" className="group-pair__front" src={other.photoUrl} />
     </span>
   );
 }

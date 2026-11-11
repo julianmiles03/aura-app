@@ -5,10 +5,17 @@ import Icon from './Icon.jsx';
 const MAX_OTHER_INTERESTS = 3;
 const MAX_HERO_PHOTOS = 3;
 
-// The card's hero: up to 3 members' real photos, each with alt text naming the person and group.
-// With no uploaded photos yet, the placeholder is announced as one image ("no photos yet")
-// instead of VoiceOver reading out "[Group photo]".
+// The card's hero: the group photo if the owner uploaded one, otherwise up to 3 members' real
+// photos, each with alt text naming the person and group. With no uploaded photos yet, the
+// placeholder is announced as one image ("no photos yet") instead of VoiceOver reading out "[Group photo]".
 function GroupPhotos({ group }) {
+  if (group.photoUrl) {
+    return (
+      <div className="gcard__photos gcard__photos--1">
+        <img src={group.photoUrl} alt={`${group.name}'s group photo`} loading="lazy" />
+      </div>
+    );
+  }
   const withPhotos = group.members.filter((m) => m.photoUrl).slice(0, MAX_HERO_PHOTOS);
   if (!withPhotos.length) {
     return (

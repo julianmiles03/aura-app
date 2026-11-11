@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { GENDERS, RELATIONSHIP_LABELS, TRAIT_SUGGESTIONS } from '../format.js';
 import Avatar from './Avatar.jsx';
+import GroupPhotoField from './GroupPhotoField.jsx';
 import Icon from './Icon.jsx';
 import { Loader } from './Loading.jsx';
 import { Field, FormError, useAsyncAction } from './ui.jsx';
@@ -230,7 +231,7 @@ export function InviteFriends({ group, onChanged }) {
   );
 }
 
-export function ManageGroupForm({ group, onSaved, onLeft }) {
+export function ManageGroupForm({ group, onSaved, onLeft, onPhotoChanged }) {
   const [name, setName] = useState(group.name);
   const [currentGroup, setCurrentGroup] = useState(group);
   const { busy, error, run } = useAsyncAction();
@@ -257,6 +258,11 @@ export function ManageGroupForm({ group, onSaved, onLeft }) {
     <form onSubmit={save}>
       <FormError error={error} />
       <Field label="Group name"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required /></Field>
+      <GroupPhotoField
+        group={currentGroup}
+        canEdit={group.role === 'owner'}
+        onChanged={async (updated) => { setCurrentGroup(updated); await onPhotoChanged?.(); }}
+      />
       <h3 className="section-label">Members · {group.memberCount} of 10</h3>
       {currentGroup.members.map((m) => (
         <div key={m.id} className="person-row">
