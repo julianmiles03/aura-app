@@ -89,6 +89,7 @@ Table friend_groups {
   latitude      numeric(9,6) [note: 'home base, for "1.2 mi away"']
   longitude     numeric(9,6)
   photo_label   varchar(60) [not null, default: 'Group photo']
+  photo_url     text [note: 'group photo in Supabase Storage (owner uploads), or null']
   avatar_color  char(7) [not null, default: '#ECE8FF']
   invite_code   varchar(12) [not null, unique]
   created_by    bigint [note: 'user who created it']
