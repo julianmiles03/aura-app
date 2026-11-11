@@ -268,6 +268,10 @@ Run `npm run db:reset` afterwards to put the requests back (check with the team 
 
 You can also check it automatically. With `npm run dev` running, run `npm run verify:chat`. It posts a message as a member of the other group in Avery's least recently active chat (Tuesday Crew + Sunday Summit Club on the seed data), polls with `?after=` the way an open chat does, checks that the chat moves to the top of the list with the new preview, checks the database rows, and prints `PASS`/`FAIL` for each step. On a fresh seed Avery has only that one chat, so there's no re-sort to see until you Accept a request (or run `npm run verify:slice`) first. It really posts a message, which stays as that chat's newest preview, and it marks the chat read, which clears the seeded unread badge. Coordinate with the team before running it on the shared database; `npm run db:reset` restores the demo data.
 
+## Logo
+
+aura's logo is a purple flame next to the "aura" wordmark. `client/src/components/FlameMark.jsx` draws it as an inline SVG (purple gradient, light inner flame) beside the wordmark on Sign in / Sign up, the phone Find header and the desktop sidebar. It's decorative (`aria-hidden`), so screen readers still just hear "aura". The browser tab icon (`client/public/favicon.svg`) is the white flame on the brand purple (`#5B3DF5`). Lighthouse Accessibility stays 100 on Sign in, Sign up and Find (phone + desktop).
+
 ## Photos and Long Names on Find
 
 From the design review: VoiceOver struggled with the images on Find, and long names ran off the card.
