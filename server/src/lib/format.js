@@ -13,4 +13,6 @@ export function groupInitials(name) {
   return (words.length > 1 ? words[0][0] + words[1][0] : name.trim().slice(0, 2)).toUpperCase();
 }
 
-export const groupBadge = (g) => ({ id: g.id, name: g.name, initials: groupInitials(g.name), avatarColor: g.avatar_color });
+export const groupBadge = (g) => ({
+  id: g.id, name: g.name, initials: groupInitials(g.name), avatarColor: g.avatar_color, photoUrl: g.photo_url ?? null,
+});

@@ -14,10 +14,10 @@ function config() {
   return { url, headers: { Authorization: `Bearer ${key}`, apikey: key } };
 }
 
-// Saves the image in the bucket and returns its public URL.
-export async function savePhoto(userId, bytes, contentType) {
+// Saves the image in the bucket under `folder` (a user id, or groups/<group id>) and returns its public URL.
+export async function savePhoto(folder, bytes, contentType) {
   const { url, headers } = config();
-  const path = `${userId}/${randomUUID()}.${PHOTO_TYPES[contentType]}`;
+  const path = `${folder}/${randomUUID()}.${PHOTO_TYPES[contentType]}`;
   const res = await fetch(`${url}/storage/v1/object/${BUCKET}/${path}`, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': contentType },
