@@ -10,6 +10,7 @@ import { useToast } from '../components/ui.jsx';
 import { plural } from '../format.js';
 import MemberProfile from '../components/MemberProfile.jsx';
 import { Sheet } from '../components/ui.jsx';
+import FlameMark from '../components/FlameMark.jsx';
 
 export default function FindScreen({ me, onSwitchGroup, refreshMe, isDesktop = false }) {
   const toast = useToast();
@@ -83,7 +84,7 @@ export default function FindScreen({ me, onSwitchGroup, refreshMe, isDesktop = f
   return (
     <div className="screen screen--find">
       <header className="page-head">
-        {isDesktop ? <h1 className="page-title">Find</h1> : <span className="wordmark" aria-label="aura">aura</span>}
+        {isDesktop ? <h1 className="page-title">Find</h1> : <span className="wordmark"><FlameMark />aura</span>}
         <GroupSwitcher groups={me.groups} activeGroupId={activeGroupId} onSwitch={onSwitchGroup} />
       </header>
 
