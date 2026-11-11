@@ -26,6 +26,8 @@ const PG_ERRORS = {
   // Text Postgres can't store, such as \u0000 pasted into a bio. Without this it's a 500.
   '22021': [400, 'VALIDATION_ERROR', "A value contains characters that can't be saved."],
   '22P05': [400, 'VALIDATION_ERROR', "A value contains characters that can't be saved."],
+  // A column a newer feature needs isn't in this database yet: run `npm run db:migrate`.
+  42703: [503, 'NEEDS_MIGRATION', "This feature isn't set up on the server yet."],
 };
 
 // eslint-disable-next-line no-unused-vars
