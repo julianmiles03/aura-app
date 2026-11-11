@@ -383,6 +383,23 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 }
 .gcard__hero-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .gcard__photo { text-align: center; color: var(--accent-ink); font-size: 15px; opacity: 0.8; }
+/* Real member photos in the card hero (1-3 side by side). */
+.gcard__photos { display: grid; gap: 6px; grid-template-columns: repeat(var(--n, 1), 1fr); }
+.gcard__photos--2 { --n: 2; }
+.gcard__photos--3 { --n: 3; }
+.gcard__photos img { width: 100%; aspect-ratio: 3 / 4; max-height: 220px; object-fit: cover; border-radius: 14px; display: block; }
+.avatar--photo { flex: none; object-fit: cover; display: block; }
+
+/* Long names: group names wrap (even one very long word); places and member names shorten with "…". */
+.gcard__name, .match-sub, .member-profile__who h3, .gcard__location { overflow-wrap: anywhere; }
+.gcard__location { align-items: flex-start; }
+.gcard__location > svg { flex: none; margin-top: 3px; }
+.chip--location { max-width: 100%; min-width: 0; }
+.chip--location > svg { flex: none; }
+.gcard__hero-row .chip--location { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; line-height: 36px; }
+.gcard__hero-row .chip--location > svg { vertical-align: -3px; margin-right: 5px; }
+.member__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.member-profile__who { min-width: 0; }
 .gcard__counter {
   flex: none;
   background: #fff;
@@ -943,6 +960,8 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
   .screen--find .gcard { display: grid; grid-template-columns: minmax(280px, 38%) minmax(0, 1fr); }
   .screen--find .gcard__hero { min-height: 100%; padding: 20px; }
   .screen--find .gcard__photo { margin: auto 0; font-size: 17px; }
+  .screen--find .gcard__photos { margin: auto 0; }
+  .screen--find .gcard__photos img { max-height: 300px; }
   .screen--find .gcard__body { padding: 28px 32px 32px; }
   .screen--find .members { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .screen--find .decide-bar {
