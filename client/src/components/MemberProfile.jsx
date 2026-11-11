@@ -3,6 +3,7 @@ import { RELATIONSHIP_LABELS } from '../format.js';
 
 export default function MemberProfile({ profile }) {
   const initials = `${profile.firstName?.[0] ?? ''}${profile.lastName?.[0] ?? ''}`.toUpperCase();
+  const firstPhoto = profile.photos?.find((p) => p.imageUrl)?.imageUrl;
   const details = [
     profile.age && `${profile.age} years old`,
     profile.gender,
@@ -11,18 +12,26 @@ export default function MemberProfile({ profile }) {
   return (
     <div className="member-profile">
       <div className="member-profile__head">
-        <Avatar initials={initials} color={profile.avatarColor} size={72} />
-        <div>
+        <Avatar initials={initials} color={profile.avatarColor} size={72} src={firstPhoto} />
+        <div className="member-profile__who">
           <h3>{profile.firstName} {profile.lastName}</h3>
           <p className="subtle">{profile.city}</p>
         </div>
       </div>
       {profile.photos?.length > 0 && (
-        <div className="photos member-profile__photos" aria-label={`${profile.firstName}'s photos`}>
-          {profile.photos.map((photo) => (
-            <div key={photo.id} className="photo" style={{ background: '#E6E1FF', color: '#4C1D95' }}>
-              [{photo.label}]
-            </div>
+        <div className="photos member-profile__photos" role="group" aria-label={`${profile.firstName}'s photos`}>
+          {profile.photos.map((photo, i) => (
+            photo.imageUrl ? (
+              <div key={photo.id} className="photo">
+                <img className="photo__img" src={photo.imageUrl} alt={`${profile.firstName}'s photo ${i + 1}`} loading="lazy" />
+              </div>
+            ) : (
+              // Seed data has labels, not files: announce it as a photo slot, not as "[Photo 1]".
+              <div key={photo.id} className="photo" role="img" aria-label={`${profile.firstName}'s photo ${i + 1} (not uploaded yet)`}
+                style={{ background: '#E6E1FF', color: '#4C1D95' }}>
+                <span aria-hidden="true">[{photo.label}]</span>
+              </div>
+            )
           ))}
         </div>
       )}
