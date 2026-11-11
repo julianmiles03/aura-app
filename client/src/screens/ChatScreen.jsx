@@ -3,7 +3,8 @@ import { api } from '../api.js';
 import Avatar, { GroupPair, GroupPairSkeleton } from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
 import { LoadingStatus, Skeleton } from '../components/Loading.jsx';
-import { formatTime, plural } from '../format.js';
+import { FormError, Sheet } from '../components/ui.jsx';
+import { formatDay, formatTime, plural } from '../format.js';
 import { canRetry, friendlyError } from '../friendlyError.js';
 import { usePoll } from '../usePoll.js';
 
@@ -113,7 +114,7 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
   const poll = async () => {
     try {
       const version = openersVersion.current;
-      const { messages, hasMore, reads, typing, suggestions, suggestionsPending } = await api(`/chats/${chatId}/messages?after=${cursor.current}`);
+      const { messages, hasMore, reads, typing, suggestions, suggestionsPending, meetup } = await api(`/chats/${chatId}/messages?after=${cursor.current}`);
       cursor.current = Math.max(cursor.current, newestId(messages));
       setTypers(typingDeadlines(typing));
       // You sent a message while this poll was on its way: its openers may predate that, so keep yours.
@@ -123,6 +124,8 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
           ...d,
           messages: mergeMessages(d.messages, messages),
           reads: sameJson(reads, d.reads) ? d.reads : reads,
+          // The other group tapping "We met up!" shows up here on the next poll.
+          meetup: sameJson(meetup, d.meetup) ? d.meetup : meetup,
           ...(openersCurrent && { suggestions: sameJson(suggestions, d.suggestions) ? d.suggestions : suggestions, suggestionsPending }),
         };
         return Object.keys(next).every((key) => next[key] === d[key]) ? d : next;
@@ -278,6 +281,13 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
           <div className="chat-head__meta">{plural(chat.peopleCount, 'person', 'people')}</div>
         </div>
       </header>
+      <MeetupBar
+        chatId={chatId}
+        meetup={data.meetup}
+        myGroup={chat.myGroup}
+        otherGroup={chat.otherGroup}
+        onConfirmed={(meetup) => setData((d) => ({ ...d, meetup }))}
+      />
 
       <div ref={log} className="chat-body" role="log" aria-label="Messages" tabIndex={0} onScroll={onScroll}>
         <p className="chat-intro">
@@ -358,6 +368,84 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
           <Icon name="send" />
         </button>
       </form>
+    </div>
+  );
+}
+
+// "We met up!" (KR4), under the chat header. Until either group taps it, a button that asks to
+// confirm; after that, both groups see when they met. An API that predates meetups sends no
+// `meetup` at all (the client and API deploy separately), so nothing shows.
+function MeetupBar({ chatId, meetup, myGroup, otherGroup, onConfirmed }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const trigger = useRef(null);
+  const done = useRef(null);
+  const justConfirmed = useRef(false);
+
+  // The button is gone once it's confirmed; put keyboard focus on the result instead of losing it.
+  useEffect(() => {
+    if (meetup && justConfirmed.current) {
+      justConfirmed.current = false;
+      done.current?.focus();
+    }
+  }, [meetup]);
+
+  if (meetup === undefined) return null;
+
+  const close = () => {
+    setConfirming(false);
+    setError(null);
+    trigger.current?.focus();
+  };
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await api(`/chats/${chatId}/meetup`, { method: 'POST' });
+      justConfirmed.current = true;
+      setConfirming(false);
+      onConfirmed(result.meetup);
+    } catch (err) {
+      setError(new Error(friendlyError(err)));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (meetup) {
+    return (
+      <div ref={done} className="meetup meetup--done" tabIndex={-1}>
+        <span className="meetup__icon" aria-hidden="true"><Icon name="check" size={18} strokeWidth={2.5} /></span>
+        <p>
+          <strong>You met up on {formatDay(meetup.metAt)}</strong>
+          {meetup.confirmedBy && <span className="meetup__by"> · confirmed by {meetup.confirmedBy.firstName}</span>}
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="meetup">
+      <p>Met {otherGroup.name} in person?</p>
+      <button ref={trigger} type="button" className="btn btn--sm btn--soft" onClick={() => setConfirming(true)}>
+        We met up!
+      </button>
+      {confirming && (
+        <Sheet title="We met up!" onClose={close}>
+          <p className="meetup-sheet__text">
+            Confirm that <strong>{myGroup.name}</strong> and <strong>{otherGroup.name}</strong> met up in person.
+            Both groups will see it in this chat, and it can't be undone.
+          </p>
+          <FormError error={error} />
+          <div className="meetup-sheet__actions">
+            <button type="button" className="btn btn--outline" onClick={close}>Not yet</button>
+            {/* autoFocus: the sheet has no field to focus, so start on the action. */}
+            <button type="button" className="btn btn--primary" disabled={busy} onClick={confirm} autoFocus>
+              {busy ? 'Saving…' : 'Yes, we met up'}
+            </button>
+          </div>
+        </Sheet>
+      )}
     </div>
   );
 }

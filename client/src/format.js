@@ -4,6 +4,14 @@ const monthDay = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeri
 
 export const formatTime = (iso) => time.format(new Date(iso));
 
+// "Oct 30", or "Oct 30, 2025" when it's not this year.
+export function formatDay(iso) {
+  const d = new Date(iso);
+  return d.getFullYear() === new Date().getFullYear()
+    ? monthDay.format(d)
+    : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
 // Chat list: "9:42 PM" today, "Tue" this week, "Sep 26" otherwise.
 export function formatChatTime(iso) {
   const d = new Date(iso);

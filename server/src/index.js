@@ -5,6 +5,7 @@ import { errorHandler, notFound } from './errors.js';
 import { AI_MODEL, aiConfigured } from './lib/gemini.js';
 import { authenticate, identify } from './middleware/auth.js';
 import accountRouter from './routes/account.js';
+import adminRouter from './routes/admin.js';
 import chatsRouter from './routes/chats.js';
 import groupsRouter from './routes/groups.js';
 import matchingRouter from './routes/matching.js';
@@ -56,6 +57,7 @@ app.use('/api', meRouter);
 app.use('/api', groupsRouter);
 app.use('/api', matchingRouter);
 app.use('/api', chatsRouter);
+app.use('/api', adminRouter); // ...and users.is_admin (403 NOT_ADMIN otherwise)
 app.use('/api', (req) => {
   throw notFound('ROUTE_NOT_FOUND', `No API route for ${req.method} ${req.path}.`);
 });

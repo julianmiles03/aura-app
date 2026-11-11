@@ -51,8 +51,10 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 14 | Read receipts | Open a chat: small avatars show who has read how far, and your latest message says **Delivered** until someone reads it | `GET /api/chats/:id/messages` (`reads`) | `chat_participants.last_read_at`, `messages` |
 | 15 | Typing indicator | Type in a chat: the other members see "Avery is typing…" within a few seconds, gone about 5 seconds after you stop | `POST`/`DELETE /api/chats/:id/typing`, `GET /api/chats/:id/messages` (`typing`) | `chat_participants.typing_at` |
 | 16 | AI conversation starters | Open a new match's chat: three "Need an opener?" chips. Tap one to fill the message box, then send it | On a match the server asks the Gemini API for 3 starters; `GET /api/chats/:id/messages` (`suggestions`), `POST /api/chats/:id/messages` (`suggestionId`) | `chat_suggestions` (`text`, `used_at`) |
+| 17 | We met up! | In a match chat, **We met up!** under the header → **Yes, we met up**; both groups then see "You met up on Oct 30" | `POST /api/chats/:id/meetup`, `GET /api/chats/:id/messages` (`meetup`) | `meetups` (feeds KR4) |
+| 18 | OKR dashboard data | The admin portal shows KR1-KR4, recalculated on every refresh | `GET /api/admin/okrs` (admins only) | `okr_metrics` view, `users.is_admin` |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), and slice 16 in [AI Conversation Starters](#ai-conversation-starters).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), and slices 17-18 in [OKR Metrics](#okr-metrics).
 
 ### Sprint 2 JW verification
 
@@ -64,7 +66,7 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 
 - **Customer app:** users use the React website, which sends requests to our Express server. The server saves and loads data in Supabase, which also handles logins. Both run live on Render.
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
-- **Admin portal (planned, AWS):** an admin uses HTML/CSS pages backed by an Express server and its own database.
+- **Admin portal (planned, AWS):** an admin uses HTML/CSS pages backed by an Express server and its own database. Its OKR dashboard reads `GET /api/admin/okrs` (see [Admin dashboard API](#admin-dashboard-api)).
 - **Where the apps connect:** the admin server reads app data from Supabase.
 
 ## ERD
@@ -83,19 +85,58 @@ Business rules are enforced in the database, not just the UI:
 
 ## OKR Metrics
 
-All four Key Results are computed automatically by the `okr_metrics` view (in [`db/schema.sql`](db/schema.sql)). It's one row, recalculated from the live tables every time you read it, so nothing has to be counted by hand or kept in sync. To see it, run `SELECT * FROM okr_metrics;` in Supabase's **SQL Editor**, or open the view in the **Table Editor**.
+All four Key Results are computed automatically by the `okr_metrics` view (in [`db/schema.sql`](db/schema.sql)). It's one row, recalculated from the live tables every time you read it, so nothing has to be counted by hand or kept in sync. Every number comes from real user activity in the app. The admin portal's OKR dashboard reads it through `GET /api/admin/okrs` (below). You can also run `SELECT * FROM okr_metrics;` in Supabase's **SQL Editor**.
 
 | KR | Measures | Column (count → percentage) | Formula | What updates it |
 |---|---|---|---|---|
 | **KR1** | % of registered groups that connect with another group | `connected_groups` → `kr1_connect_pct` | groups in at least one `group_matches` row ÷ all `friend_groups` | A **match**: two groups both say Connect (Find or Accept in "Groups that liked you") → new `group_matches` row. A **new group** → new `friend_groups` row (raises the denominator). |
 | **KR2** | % of groups with 4+ people | `four_plus_groups` → `kr2_four_plus_pct` | groups with ≥ 4 `group_memberships` rows ÷ all `friend_groups` | Someone **creates, joins or leaves** a group, or is **invited** into one → `group_memberships` row added or removed. |
 | **KR3** | % of connected groups that exchange messages | `messaging_groups` → `kr3_message_pct` | connected groups with a match chat where **both** groups have sent at least one message ÷ connected groups | A **message is sent** → new `messages` row. The sender's side comes from `chat_participants.group_id`. A chat where only one group has talked doesn't count yet. |
-| **KR4** | % of connected groups that meet up | `meetup_groups` → `kr4_meetup_pct` | connected groups with at least one `meetups` row for any of their matches ÷ connected groups | A **meetup is confirmed** → new `meetups` row (`match_id`, `confirmed_by_user_id`, `created_at`). |
+| **KR4** | % of connected groups that meet up | `meetup_groups` → `kr4_meetup_pct` | connected groups with at least one `meetups` row for any of their matches ÷ connected groups | Someone taps **We met up!** in a match chat and confirms → new `meetups` row (`match_id`, `confirmed_by_user_id`, `created_at`). |
+
+### Which table or event drives each KR
+
+| KR | Table | Event in the app | Try it on the live site (then refresh the admin dashboard) |
+|---|---|---|---|
+| **KR1** | `group_matches` (count), `friend_groups` (out of) | Two groups both tap **Connect**: on Find, or **Accept** in Messages → "Groups that liked you" | Sign in as a member of a group that has no match yet, open Messages → "Groups that liked you" and **Accept** (or Connect on Find with a group that already liked yours). **Connected groups** goes up by 2, or by 1 if the other group was already connected. |
+| **KR2** | `group_memberships` | A 4th member joins a group: invite code, invite link or **Invite friends** | Create a group (1 member), then have 3 friends join it with its invite code. On the 4th, **groups with 4+ people** goes up by 1. A new group also adds 1 to the total, so KR1 and KR2's percentages dip until it grows. |
+| **KR3** | `messages` (sender's group from `chat_participants.group_id`) | Both groups in a match send at least one message | Open a match chat where only one side has talked (or a brand-new match) and send a message from each group. When the second group sends, **messaging groups** goes up by 2. |
+| **KR4** | `meetups` | Someone taps **We met up!** in a match chat and confirms | In a match chat that doesn't say "You met up on…", tap **We met up!** → **Yes, we met up**. **Meetup groups** goes up by 2, and both groups see the date in the chat. |
+
+### "We met up!" (feeds KR4)
+
+- **Where:** a bar under the header of every match chat, on phones and desktop. Until someone confirms, it asks "Met *other group* in person?" with a **We met up!** button. Tapping it opens a confirm sheet (**Not yet** / **Yes, we met up**), so a stray tap can't count.
+- **What it saves:** `POST /api/chats/:id/meetup` adds one `meetups` row for the chat's match, with you as `confirmed_by_user_id`. Anyone in the chat, from either group, can confirm. The API checks you're in the chat (`403 NOT_IN_CHAT`, `404 CHAT_NOT_FOUND`).
+- **One per match:** a match keeps its first meetup. Tapping again, or both groups tapping at the same moment, doesn't add a second row: the API answers `201` when it recorded the meetup and `200` when one already existed. The match row is locked while it checks, so two simultaneous taps can't both insert.
+- **Afterward:** both groups see "You met up on Oct 30 · confirmed by Avery" in place of the button. The other group's open chat picks it up on its next poll (within about 5 seconds), because `GET /api/chats/:id/messages` (and `?after=`) returns `meetup: { metAt, confirmedBy } | null`.
+
+### Admin dashboard API
+
+David's admin portal shows the KRs from `GET /api/admin/okrs`. It needs a signed-in user (`Authorization: Bearer`, like every other route) whose `users.is_admin` is `true`; anyone else gets `403 NOT_ADMIN`. `GET /api/me` includes `user.isAdmin`, so the app can tell whether to offer the portal. The numbers are read live from `okr_metrics` on every request (no caching), so refreshing the dashboard after a user action shows the new value. If the portal calls the API from a browser on its own domain, add that domain to `CORS_ORIGIN` on aura-is401-api (comma-separated), or the browser blocks the request.
+
+```json
+{
+  "asOf": "2026-11-11T23:41:59.197Z",
+  "totalGroups": 25,
+  "connectedGroups": 15,
+  "keyResults": [
+    { "id": "KR1", "label": "Groups that connect with another group", "count": 15, "outOf": 25, "pct": 60, "drivenBy": "group_matches: two groups both tap Connect" },
+    { "id": "KR2", "label": "Groups with 4+ people", "count": 6, "outOf": 25, "pct": 24, "drivenBy": "group_memberships: a 4th member joins a group" },
+    { "id": "KR3", "label": "Connected groups that exchange messages", "count": 9, "outOf": 15, "pct": 60, "drivenBy": "messages: both groups in a match send at least one message" },
+    { "id": "KR4", "label": "Connected groups that meet up", "count": 0, "outOf": 15, "pct": 0, "drivenBy": "meetups: someone taps \"We met up!\" in a match chat" }
+  ]
+}
+```
+
+`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. To make someone an admin, run this in Supabase's **SQL Editor** (`users.id` is in the Table Editor):
+
+```sql
+UPDATE users SET is_admin = true WHERE id = <their users.id>;
+```
 
 Notes:
-- **KR4 has no button in the app yet.** The `meetups` table is the groundwork; the next step is a "We met up" action in a match's chat that inserts a row. Until then, add rows in the Table Editor, as the seed does for Tuesday Crew + Sunday Summit Club.
 - A percentage is empty (`NULL`) instead of an error when its denominator is 0, for example KR3 and KR4 before any group has matched.
-- **Updating an existing database:** schema changes that must keep everyone's other data go in `db/migrations/` as files that are safe to re-run. `npm run db:migrate` runs them all and prints the current KRs. `db/schema.sql` matches the result, so a fresh `npm run db:reset` ends up the same. `001_okr_metrics.sql` adds the OKR table and view; `002_drop_events.sql` removes the events feature (its two tables and their rows). Both are applied to Find Friends App.
+- **Updating an existing database:** schema changes that must keep everyone's other data go in `db/migrations/` as files that are safe to re-run. `npm run db:migrate` runs them all and prints the current KRs. `db/schema.sql` matches the result, so a fresh `npm run db:reset` ends up the same. `001_okr_metrics.sql` adds the OKR table and view; `002_drop_events.sql` removes the events feature (its two tables and their rows); `008_admin.sql` adds `users.is_admin`. All are applied to Find Friends App.
 
 ## Tech Stack
 

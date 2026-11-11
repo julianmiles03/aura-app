@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { pool, query } from '../db.js';
+import { pool, query, withTransaction } from '../db.js';
 import { badRequest, forbidden, notFound } from '../errors.js';
 import { actingGroupId, requireGroup } from '../middleware/auth.js';
 import { loadChatRows } from '../lib/chats.js';
@@ -79,14 +79,31 @@ async function loadOthers(chatId, userId) {
   };
 }
 
+// "We met up!" (KR4): when this chat's two groups met in person, and who said so. A match keeps its
+// first meetup; null until someone taps the button.
+async function loadMeetup(chatId) {
+  const { rows: [m] } = await query(
+    `SELECT mu.created_at, u.id AS user_id, u.first_name
+     FROM chats c
+     JOIN meetups mu ON mu.match_id = c.match_id
+     LEFT JOIN users u ON u.id = mu.confirmed_by_user_id
+     WHERE c.id = $1
+     ORDER BY mu.created_at, mu.id LIMIT 1`,
+    [chatId],
+  );
+  return {
+    meetup: m ? { metAt: m.created_at, confirmedBy: m.user_id ? { id: m.user_id, firstName: m.first_name } : null } : null,
+  };
+}
+
 // An open chat polls with ?after=<last message id> (0 if it has none): newer messages only,
-// oldest first, 200 at a time, plus the current read receipts, who's typing and the AI openers
-// still on offer. Marks the chat read only when something new came back.
+// oldest first, 200 at a time, plus the current read receipts, who's typing, the AI openers
+// still on offer and the meetup. Marks the chat read only when something new came back.
 async function newerMessages(chatId, userId, rawAfter) {
   const after = typeof rawAfter === 'string' && /^\d+$/.test(rawAfter) ? Number(rawAfter) : NaN;
   if (!Number.isSafeInteger(after)) throw badRequest('INVALID_ID', 'after must be a message id (a whole number, 0 or more).');
   await participantGroup(chatId, userId);
-  const [{ rows }, others, openers] = await Promise.all([query(
+  const [{ rows }, others, openers, meetup] = await Promise.all([query(
     `WITH newer AS (
        SELECT m.id, m.body, m.created_at, m.sender_user_id, u.first_name, u.last_name, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url
        FROM messages m LEFT JOIN users u ON u.id = m.sender_user_id
@@ -96,12 +113,12 @@ async function newerMessages(chatId, userId, rawAfter) {
        WHERE chat_id = $1 AND user_id = $2 AND EXISTS (SELECT 1 FROM newer))
      SELECT * FROM newer ORDER BY id`,
     [chatId, userId, after],
-  ), loadOthers(chatId, userId), loadSuggestions(chatId)]);
-  return { messages: rows.slice(0, 200).map((m) => formatMessage(m, userId)), hasMore: rows.length > 200, ...others, ...openers };
+  ), loadOthers(chatId, userId), loadSuggestions(chatId), loadMeetup(chatId)]);
+  return { messages: rows.slice(0, 200).map((m) => formatMessage(m, userId)), hasMore: rows.length > 200, ...others, ...openers, ...meetup };
 }
 
-// Opening a chat returns its latest 200 messages (with read receipts, who's typing and the AI
-// openers on offer) and marks it read.
+// Opening a chat returns its latest 200 messages (with read receipts, who's typing, the AI
+// openers on offer and the meetup) and marks it read.
 router.get('/chats/:id/messages', requireGroup, async (req, res) => {
   const chatId = parseId(req.params.id, 'chat id');
   if (req.query.after !== undefined) return res.json(await newerMessages(chatId, req.user.id, req.query.after));
@@ -124,9 +141,10 @@ router.get('/chats/:id/messages', requireGroup, async (req, res) => {
     ),
     loadOthers(chatId, req.user.id),
   ]);
-  const [, openers] = await Promise.all([
+  const [, openers, meetup] = await Promise.all([
     query('UPDATE chat_participants SET last_read_at = now() WHERE chat_id = $1 AND user_id = $2', [chatId, req.user.id]),
     loadSuggestions(chatId),
+    loadMeetup(chatId),
   ]);
   res.json({
     chat: { ...chat, unreadCount: 0 },
@@ -142,7 +160,30 @@ router.get('/chats/:id/messages', requireGroup, async (req, res) => {
     messages: messages.rows.map((m) => formatMessage(m, req.user.id)),
     ...others,
     ...openers,
+    ...meetup,
   });
+});
+
+// "We met up!": anyone in the chat, from either group, confirms that the two groups met in person.
+// Adds the meetups row that KR4 counts. A match has one meetup, so tapping again (or both groups
+// tapping at once) keeps the first: 201 when this call recorded it, 200 when it already existed.
+router.post('/chats/:id/meetup', requireGroup, async (req, res) => {
+  const chatId = parseId(req.params.id, 'chat id');
+  await participantGroup(chatId, req.user.id);
+  const created = await withTransaction(async (db) => {
+    // Locking the match row makes a second, simultaneous tap wait here and then see the first row.
+    const { rows: [match] } = await db.query(
+      'SELECT gm.id FROM chats c JOIN group_matches gm ON gm.id = c.match_id WHERE c.id = $1 FOR UPDATE OF gm',
+      [chatId],
+    );
+    const { rowCount } = await db.query(
+      `INSERT INTO meetups (match_id, confirmed_by_user_id)
+       SELECT $1, $2 WHERE NOT EXISTS (SELECT 1 FROM meetups WHERE match_id = $1)`,
+      [match.id, req.user.id],
+    );
+    return rowCount === 1;
+  });
+  res.status(created ? 201 : 200).json(await loadMeetup(chatId));
 });
 
 // Sends a message. suggestionId (optional) is the AI opener it started from: that one is marked
