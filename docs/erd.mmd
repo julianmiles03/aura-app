@@ -36,6 +36,7 @@ erDiagram
         char avatar_color
         bigint active_group_id FK
         uuid auth_user_id UK "Supabase Auth login (auth.users)"
+        boolean is_admin "OKR dashboard access"
         timestamptz created_at
     }
     user_photos {

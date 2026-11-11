@@ -48,6 +48,8 @@ export async function loadMe(userId) {
       relationshipStatus: u.relationship_status,
       personalityTraits: u.personality_traits,
       avatarColor: u.avatar_color,
+      // Whether to offer the admin portal. False until migration 008 adds the column.
+      isAdmin: u.is_admin === true,
     },
     photos: photos.rows.map((p) => ({ id: p.id, position: p.position, label: p.label, imageUrl: p.image_url })),
     interests: interests.rows,

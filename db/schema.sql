@@ -42,6 +42,7 @@ CREATE TABLE users (
   -- The Supabase Auth account that signs in as this user (NULL for seeded users without a demo login).
   -- FK to auth.users added below when this login is allowed to reference it.
   auth_user_id        uuid         UNIQUE,
+  is_admin            boolean      NOT NULL DEFAULT false,  -- may read the OKR dashboard (GET /api/admin/okrs)
   created_at          timestamptz  NOT NULL DEFAULT now()
 );
 

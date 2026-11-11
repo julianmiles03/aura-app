@@ -599,6 +599,34 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .chat-head__name { font-weight: 700; font-size: 17px; line-height: 1.2; }
 .chat-head__meta { color: var(--muted); font-size: 14px; }
 .chat-head > div { min-width: 0; }
+/* "We met up!" (KR4): a slim bar under the chat header */
+.meetup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 16px;
+  background: var(--card);
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+}
+.meetup p { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.meetup .btn { flex: none; }
+.meetup--done { min-height: 44px; }
+.meetup--done:focus-visible { outline-offset: -3px; }
+.meetup__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.meetup__by { color: var(--muted); }
+.meetup-sheet__text { margin: 0 0 18px; color: var(--muted); overflow-wrap: anywhere; }
+.meetup-sheet__text strong { color: var(--ink); }
+.meetup-sheet__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px; }
 .chat-body { flex: 1; overflow-y: auto; padding: 16px 14px; display: flex; flex-direction: column; gap: 4px; }
 .chat-body:focus-visible { outline-offset: -3px; }
 /* "New messages" floats just above the composer while you're scrolled up */
