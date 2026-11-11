@@ -70,6 +70,9 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 }
 .page-title { font-size: 40px; font-weight: 800; line-height: 1.05; }
 .wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.14em;
   font-family: var(--font-head);
   font-size: 40px;
   font-weight: 800;
@@ -77,6 +80,7 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
   letter-spacing: -0.04em;
   line-height: 1;
 }
+.flame-mark { height: 0.86em; width: auto; flex: none; transform: translateY(-0.04em); }
 .subtle { color: var(--muted); }
 .section-label {
   font-size: 13px;
