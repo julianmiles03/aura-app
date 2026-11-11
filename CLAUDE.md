@@ -48,6 +48,7 @@ Machine-specific notes (paths, accounts, local setup) belong in `CLAUDE.local.md
 
 ## Business rules (enforced on the server or in the database)
 - A Friend Group has at most 10 members (trigger `group_member_cap`, which raises `GROUP_FULL`). A chat has at most 30 people (`chat_participant_cap`, which raises `CHAT_FULL`).
+- Only a group's owner can change its photo (`PUT`/`DELETE /groups/:id/photo`, `friend_groups.photo_url`).
 - A person has 1 main photo (position 1) + up to 3 more (positions 2-4). The first photo becomes main; `POST /me/photos/:id/main` swaps; deleting closes the gap.
 - A user can be in several groups but has one active group, which must be one of their own groups (composite FK `users_active_group_is_membership`).
 - A group's shared interests are the union of its members' interests, computed by the `group_shared_interests` view and never stored.

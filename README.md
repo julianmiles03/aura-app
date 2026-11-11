@@ -317,6 +317,16 @@ Everyone has **1 main photo + up to 3 more**, on the Profile page and in profile
 
 **Try it by hand.** Sign in as anyone, open Profile: a demo person shows their illustrated avatar. Tap it → **Upload a new main photo** and pick an image. It shows "Uploading…", then your photo big at the top (and as your avatar in Find and chats). Tap one of the 3 below → **Make main photo** to swap. In Supabase → Storage → `profile-photos` you'll see the file in a folder named after the user's id, and in the `user_photos` table its `image_url`.
 
+## Group Photo
+
+A group's **owner** can upload, replace or remove the group photo in **Profile → Manage group → Group photo** (it saves right away, separate from "Save changes"). Other members see it there with "Only the group's owner can change the group photo".
+
+- **Where it shows.** As the hero of the group's card on Find (instead of members' photos), on the group's avatar in Messages (chat rows, "Groups that liked you") and in the chat header, and on Profile → My groups. Groups without one keep their initials and the members' photos.
+- **API.** `PUT /api/groups/:id/photo` with the image file as the body (JPEG, PNG or WebP, up to 5 MB) and `DELETE /api/groups/:id/photo`; both answer with the updated group card. Anyone but the owner gets `403 OWNER_REQUIRED`. The file goes to the same `profile-photos` bucket under `groups/<group id>/`, and replacing or removing the photo deletes the old file. Group cards and chat rows send it as `photoUrl`.
+- **Database.** `friend_groups.photo_url` (migration `007_group_photo.sql`, additive). Run `npm run db:migrate` once on the shared database after merging.
+
+**Try it by hand.** Sign in as Avery (owner of Tuesday Crew) → Profile → Manage group → **Upload photo**. Then sign in as Maya: Messages and the Tuesday Crew chat header show it.
+
 ## Read Receipts
 
 Under an open chat's messages, small avatars show who has read how far, the way Messenger does.
