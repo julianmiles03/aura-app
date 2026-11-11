@@ -147,6 +147,7 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
           <ManageGroupForm
             group={sheet.group}
             onSaved={async () => { await refreshMe(); close(); toast('Group updated.'); }}
+            onPhotoChanged={refreshMe}
             onLeft={async () => { close(); await refreshMe(); toast(`You left ${sheet.group.name}.`); }}
           />
         </Sheet>
@@ -160,7 +161,7 @@ function MyGroupCard({ group, onSwitch, onInvite, onManage }) {
   return (
     <section className={`card mygroup ${group.isActive ? 'mygroup--active' : ''}`} aria-label={group.name}>
       <div className="mygroup__head">
-        <Avatar initials={group.initials} color={group.avatarColor} size={60} shape="square" solid={group.isActive} />
+        <Avatar initials={group.initials} color={group.avatarColor} size={60} shape="square" solid={group.isActive} src={group.photoUrl} />
         <div>
           <div className="mygroup__name">
             {group.name} {group.isActive && <span className="badge">Active</span>}

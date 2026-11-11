@@ -187,7 +187,7 @@ export default function MessagesScreen({ me, onSwitchGroup, refreshMe, isDesktop
             const accepting = busy && pending.action === 'accept';
             return (
               <div key={like.id} className="like-row" style={{ opacity: busy ? 0.6 : 1 }} aria-busy={busy || undefined}>
-                <Avatar initials={g.initials} color={g.avatarColor} size={48} shape="square" />
+                <Avatar initials={g.initials} color={g.avatarColor} size={48} shape="square" src={g.photoUrl} />
                 <div className="like-row__info">
                   <div className="like-row__name">{g.name}</div>
                   <div className="like-row__meta">{plural(g.memberCount, 'member')} · {extra}</div>
