@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dicebear/core": "^9.4.2",
+    "@dicebear/personas": "^9.4.2",
     "@supabase/auth-js": "^2.119.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
