@@ -657,6 +657,46 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .profile-top__name { font-size: 26px; font-weight: 800; line-height: 1.1; }
 .profile-bio { margin: 16px 0 0; font-size: 17px; line-height: 1.5; }
 .photos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+/* Main photo: big on top of the profile; the 3 more sit under it. */
+.photo-hero {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  margin: 0 0 16px;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--accent-soft);
+  cursor: pointer;
+}
+.photo-hero .photo__img { object-fit: cover; }
+.photo-hero .photo__status { position: absolute; inset: 0; justify-content: center; }
+.photo-hero__cta {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.photos__label { margin: 18px 0 10px; }
+.photos__intro { margin: 4px 0 14px; }
+.photos--extra .photo { aspect-ratio: 1; padding: 0; cursor: pointer; background: var(--accent-soft); color: var(--accent-ink); }
+.photos--extra .photo--add { background: transparent; }
+.photo--slot { background: transparent !important; border: 2px dashed #e4e1ee; }
+.photo__empty { font-size: 13px; font-weight: 600; padding: 6px; text-align: center; overflow-wrap: anywhere; }
+.photo-sheet__img { display: block; width: 100%; max-height: 50vh; object-fit: contain; border-radius: 16px; background: #000; margin-bottom: 14px; }
+.photo-sheet__actions { display: grid; gap: 10px; }
 .photo {
   position: relative;
   aspect-ratio: 3 / 4;
@@ -790,8 +830,8 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .person-row__name { flex: 1; font-weight: 600; }
 .btn--danger-outline { border: 1px solid #f2b8b5; color: var(--danger); background: transparent; }
 .auth-cancel { margin-top: 10px; }
-.member-profile__head { display: flex; align-items: center; gap: 16px; }
-.member-profile__head h3 { font-size: 24px; font-weight: 800; }
+.member-profile__main { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 20px; background: var(--accent-soft); margin-bottom: 14px; }
+.member-profile__who h3 { font-size: 24px; font-weight: 800; }
 .member-profile__photos { margin: 18px 0; }
 .member-profile .chips { margin: 14px 0; }
 
