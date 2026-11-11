@@ -37,12 +37,9 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
       )}
 
       <section className="card">
-        <div className="card__head">
-          <h2 className="card__title">Photos</h2>
-          <span className="muted-small">{me.photos.length} of 3</span>
-        </div>
-        <p className="hint">Add at least one photo so other groups know who they may meet.</p>
-        <PhotoGrid photos={me.photos} ownerName={me.user.firstName} onChanged={refreshMe} />
+        <h2 className="card__title">Photos</h2>
+        <p className="hint photos__intro">Add a main photo so other groups know who they may meet, plus up to 3 more.</p>
+        <PhotoGrid photos={me.photos} ownerName={me.user.firstName} ownerId={me.user.id} avatarColor={me.user.avatarColor} onChanged={refreshMe} />
       </section>
 
       <section className="card">

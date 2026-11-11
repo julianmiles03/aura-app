@@ -52,23 +52,16 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
       <div className="profile-columns">
         <div className="profile-col">
           <section className="card">
-            <div className="profile-top">
-              <Avatar initials={user.initials} color={user.avatarColor} size={72} />
-              <div className="profile-top__info">
-                <h2 className="profile-top__name">{user.firstName} {user.lastName}</h2>
-                <div className="subtle">{user.city}</div>
+            <PhotoGrid photos={photos} ownerName={user.firstName} ownerId={user.id} avatarColor={user.avatarColor} onChanged={refreshMe}>
+              <div className="profile-top">
+                <div className="profile-top__info">
+                  <h2 className="profile-top__name">{user.firstName} {user.lastName}</h2>
+                  <div className="subtle">{user.city}</div>
+                </div>
+                <button type="button" className="btn btn--outline btn--sm" onClick={() => setSheet({ type: 'edit' })}>Edit</button>
               </div>
-              <button type="button" className="btn btn--outline btn--sm" onClick={() => setSheet({ type: 'edit' })}>Edit</button>
-            </div>
-            {user.bio && <p className="profile-bio">{user.bio}</p>}
-          </section>
-
-          <section className="card">
-            <div className="card__head">
-              <h2 className="card__title">Photos</h2>
-              <span className="muted-small">{photos.length} of 3</span>
-            </div>
-            <PhotoGrid photos={photos} ownerName={user.firstName} onChanged={refreshMe} />
+              {user.bio && <p className="profile-bio">{user.bio}</p>}
+            </PhotoGrid>
           </section>
 
           <section className="card">
