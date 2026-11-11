@@ -11,7 +11,16 @@ const INK_ON = {
   '#ECE8FF': '#4C1D95',
 };
 
-export default function Avatar({ initials, color = '#ECE8FF', size = 44, shape = 'circle', className = '', solid = false }) {
+// Pass `src` to show a photo instead of initials. It stays decorative (alt="") because the
+// person's name is always next to it or in the surrounding button's label.
+export default function Avatar({ initials, color = '#ECE8FF', size = 44, shape = 'circle', className = '', solid = false, src }) {
+  if (src) {
+    const radius = shape === 'circle' ? '50%' : Math.round(size * 0.3);
+    return (
+      <img className={`avatar avatar--photo ${className}`} src={src} alt="" width={size} height={size}
+        style={{ width: size, height: size, borderRadius: radius }} />
+    );
+  }
   const style = {
     width: size,
     height: size,
