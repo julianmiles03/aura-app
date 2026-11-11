@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { GENDERS, RELATIONSHIP_LABELS, TRAIT_SUGGESTIONS } from '../format.js';
 import Avatar from './Avatar.jsx';
+import GroupPhotoField from './GroupPhotoField.jsx';
 import Icon from './Icon.jsx';
 import { Loader } from './Loading.jsx';
 import { Field, FormError, useAsyncAction } from './ui.jsx';
@@ -98,6 +99,7 @@ export function EditProfileForm({ me, onSaved }) {
 export function AddInterestForm({ current, onAdd }) {
   const [all, setAll] = useState([]);
   const [text, setText] = useState('');
+  const [showAll, setShowAll] = useState(false); // 8 suggestions, then "More"
   const { busy, error, run } = useAsyncAction();
   useEffect(() => {
     api('/interests').then((d) => setAll(d.interests)).catch(() => {});
@@ -113,11 +115,14 @@ export function AddInterestForm({ current, onAdd }) {
         <input value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Pickleball" maxLength={40} />
       </Field>
       <div className="chips" style={{ marginBottom: 16 }}>
-        {suggestions.slice(0, 14).map((i) => (
+        {suggestions.slice(0, showAll || q ? 30 : 8).map((i) => (
           <button key={i.id} type="button" className="chip chip--gray" disabled={busy} onClick={() => add(i.name)}>
             + {i.name}
           </button>
         ))}
+        {!showAll && !q && suggestions.length > 8 && (
+          <button type="button" className="chip chip--dashed" onClick={() => setShowAll(true)}>More</button>
+        )}
       </div>
       <button className="btn btn--primary btn--block" disabled={busy || !q}>
         {busy ? 'Adding…' : q ? `Add "${text.trim()}"` : 'Type or pick an interest'}
@@ -216,7 +221,7 @@ export function InviteFriends({ group, onChanged }) {
         const inGroup = f.groupIds.includes(group.id);
         return (
           <div key={f.id} className="person-row">
-            <Avatar initials={f.initials} color={f.avatarColor} size={40} />
+            <Avatar initials={f.initials} color={f.avatarColor} size={40} src={f.photoUrl} personId={f.id} />
             <span className="person-row__name">{f.firstName} {f.lastName}</span>
             {inGroup ? (
               <span className="muted-small">In group</span>
@@ -230,7 +235,7 @@ export function InviteFriends({ group, onChanged }) {
   );
 }
 
-export function ManageGroupForm({ group, onSaved, onLeft }) {
+export function ManageGroupForm({ group, onSaved, onLeft, onPhotoChanged }) {
   const [name, setName] = useState(group.name);
   const [currentGroup, setCurrentGroup] = useState(group);
   const { busy, error, run } = useAsyncAction();
@@ -257,10 +262,15 @@ export function ManageGroupForm({ group, onSaved, onLeft }) {
     <form onSubmit={save}>
       <FormError error={error} />
       <Field label="Group name"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required /></Field>
+      <GroupPhotoField
+        group={currentGroup}
+        canEdit={group.role === 'owner'}
+        onChanged={async (updated) => { setCurrentGroup(updated); await onPhotoChanged?.(); }}
+      />
       <h3 className="section-label">Members · {group.memberCount} of 10</h3>
       {currentGroup.members.map((m) => (
         <div key={m.id} className="person-row">
-          <Avatar initials={m.initials} color={m.avatarColor} size={40} />
+          <Avatar initials={m.initials} color={m.avatarColor} size={40} src={m.photoUrl} personId={m.id} />
           <span className="person-row__name">{m.firstName} {m.lastName}</span>
           {m.role === 'owner' && <span className="badge">Owner</span>}
           {group.role === 'owner' && m.role !== 'owner' && (

@@ -1,10 +1,11 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import crypto from 'node:crypto';
 import { pool, query, withTransaction } from '../db.js';
-import { conflict, forbidden, notFound } from '../errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { randomPastel } from '../lib/format.js';
 import { assertMember, loadGroupCards, loadRelationshipStats } from '../lib/groups.js';
 import { requireCompleteProfile } from '../lib/profile.js';
+import { PHOTO_MAX_BYTES, PHOTO_TYPES, removePhoto, savePhoto } from '../lib/storage.js';
 import { parseId, readText } from '../lib/validate.js';
 
 const router = Router();
@@ -113,14 +114,45 @@ router.post('/groups/:id/members', async (req, res) => {
   res.status(201).json({ group: await groupCard(groupId, { includeInviteCode: true }) });
 });
 
-async function assertOwner(db, groupId, userId) {
+async function assertOwner(db, groupId, userId, message = 'Only the group owner can remove members.') {
   const { rows: [membership] } = await db.query(
     'SELECT role FROM group_memberships WHERE group_id = $1 AND user_id = $2',
     [groupId, userId],
   );
   if (!membership) throw notFound('GROUP_NOT_FOUND', 'That friend group does not exist.');
-  if (membership.role !== 'owner') throw forbidden('OWNER_REQUIRED', 'Only the group owner can remove members.');
+  if (membership.role !== 'owner') throw forbidden('OWNER_REQUIRED', message);
 }
+
+// Group photo: the owner uploads (or replaces) it. The body is the image itself, like profile photos.
+// It's stored under groups/<group id>/ in the same bucket; a replaced photo's file is deleted.
+router.put('/groups/:id/photo', express.raw({ type: Object.keys(PHOTO_TYPES), limit: PHOTO_MAX_BYTES }), async (req, res) => {
+  const groupId = parseId(req.params.id, 'group id');
+  await assertOwner(pool, groupId, req.user.id, 'Only the group owner can change the group photo.');
+  const contentType = req.get('Content-Type')?.split(';')[0].trim().toLowerCase();
+  if (!PHOTO_TYPES[contentType] || !Buffer.isBuffer(req.body) || req.body.length === 0) {
+    throw badRequest('INVALID_PHOTO', 'Choose a JPEG, PNG or WebP image.');
+  }
+  const photoUrl = await savePhoto(`groups/${groupId}`, req.body, contentType);
+  const { rows: [old] } = await query(
+    `UPDATE friend_groups g SET photo_url = $2 FROM (SELECT photo_url FROM friend_groups WHERE id = $1) old
+     WHERE g.id = $1 RETURNING old.photo_url`,
+    [groupId, photoUrl],
+  );
+  await removePhoto(old?.photo_url);
+  res.json({ group: await groupCard(groupId, { includeInviteCode: true }) });
+});
+
+router.delete('/groups/:id/photo', async (req, res) => {
+  const groupId = parseId(req.params.id, 'group id');
+  await assertOwner(pool, groupId, req.user.id, 'Only the group owner can change the group photo.');
+  const { rows: [old] } = await query(
+    `UPDATE friend_groups g SET photo_url = NULL FROM (SELECT photo_url FROM friend_groups WHERE id = $1) old
+     WHERE g.id = $1 RETURNING old.photo_url`,
+    [groupId],
+  );
+  await removePhoto(old?.photo_url);
+  res.json({ group: await groupCard(groupId, { includeInviteCode: true }) });
+});
 
 async function addMember(group, userId) {
   await withTransaction(async (client) => {

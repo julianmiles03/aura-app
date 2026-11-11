@@ -16,7 +16,7 @@ From our Product Requirements Document.
 
 | # | Requirement | Status | How it works in aura |
 |---|---|---|---|
-| 1 | When the user joins, the system prompts them to create a profile (personal info, photos, interests) and join or create a Friend Group. | **Complete** | New users go through profile setup, then must create or join a group (`403 PROFILE_INCOMPLETE` until the profile is done). Profile setup includes uploading 1–3 real photos from the camera roll or computer (see [Profile Photos](#profile-photos)). |
+| 1 | When the user joins, the system prompts them to create a profile (personal info, photos, interests) and join or create a Friend Group. | **Complete** | New users go through profile setup, then must create or join a group (`403 PROFILE_INCOMPLETE` until the profile is done). Profile setup includes uploading a main photo plus up to 3 more from the camera roll or computer (see [Profile Photos](#profile-photos)). |
 | 2 | When a user updates their interests, the shared Friend Group interests update automatically. | **Complete** | Group interests come from the `group_shared_interests` view (the union of members' interests), so they're never stored and change the moment a member edits theirs. |
 | 3 | A Friend Group can't have more than 10 members; adding an 11th fails with an error returned to the user. | **Complete** | The `group_member_cap` trigger rejects the insert and the API returns `409 GROUP_FULL`, shown as an error in the app (try joining Wednesday Volleyball, which is full). |
 | 4 | Users who aren't in a Friend Group get an error inviting them to create or join one before they can use the app. | **Complete** | Every group-scoped endpoint returns `403 NO_GROUP`, and the app shows the "Create or join a group" screen. |
@@ -37,17 +37,17 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 |---|---|---|---|---|
 | 1 | Sign up and sign in | **Sign up** (name, city, email, password) goes straight to profile setup; returning users use **Sign in** ("Already have an account?") | Supabase Auth, then `POST /api/users`; every request sends the session as `Authorization: Bearer` | `auth.users`, `users.auth_user_id` |
 | 2 | Profile and interests | Profile → edit bio, details and interests | `PATCH /api/me` | `users`, `user_interests` (group interests update through the `group_shared_interests` view) |
-| 3 | Profile photos | Profile (or profile setup) → **Add photo** → pick an image; it uploads with a preview and replaces the placeholder. Remove any photo but the last | `POST /api/me/photos/upload`, `DELETE /api/me/photos/:id` | `user_photos.image_url` + Supabase Storage bucket `profile-photos` |
+| 3 | Profile photos | Profile (or profile setup) → **Add photo** → pick an image; it uploads with a preview. Tap a photo → **Make main photo** or **Remove photo** (any but the last) | `POST /api/me/photos/upload`, `POST /api/me/photos/:id/main`, `DELETE /api/me/photos/:id` | `user_photos.image_url` + Supabase Storage bucket `profile-photos` |
 | 4 | Onboarding gate | A user with no group sees "Create or join a group" instead of the app | any group endpoint → `403 NO_GROUP` | `group_memberships` |
 | 5 | Create a group | Gate or Profile → **Create a group** | `POST /api/groups` | `friend_groups`, `group_memberships`, `users.active_group_id` |
 | 6 | Join with an invite code | Enter a code; a full group shows "already has 10 members" | `POST /api/groups/join` → `409 GROUP_FULL` when full | `group_memberships` (`group_member_cap` trigger) |
 | 7 | Invite a friend to your group | Profile → **Invite friends** → pick a friend | `GET /api/me/friends`, `POST /api/groups/:id/members` | `friendships`, `group_memberships`, `chat_participants` |
 | 8 | Edit group and leave group | Profile → edit group name, or **Leave group** | `PATCH /api/groups/:id`, `DELETE /api/groups/:id/members/me` | `friend_groups`, `group_memberships`, `chat_participants` |
-| 9 | Switch active group | Group switcher on Find or "Chatting as" on Messages | `PATCH /api/me/active-group` | `users.active_group_id` (composite FK to memberships) |
+| 9 | Switch active group | Group switcher on Find, "Chatting as" on Messages, or Profile → a group's **…** → **Make active group** | `PATCH /api/me/active-group` | `users.active_group_id` (composite FK to memberships) |
 | 10 | Find, Connect and Pass | Find shows one ranked group at a time; **Connect** or **Pass** loads the next | `GET /api/recommendations`, `POST /api/groups/:id/likes` | `group_likes`; a mutual Connect creates the match and chat |
 | 11 | Accept or decline a request | Messages → "Groups that liked you" → **Accept** (new chat appears) or decline | `GET /api/groups/:id/incoming-likes`, `POST /api/likes/:id/accept`, `POST /api/likes/:id/decline` | `group_likes`, `group_matches`, `chats`, `chat_participants` in one transaction |
 | 12 | Group chat with live updates | Open a chat, send a message; the other group sees it within ~5 seconds | `GET /api/chats/:id/messages?after=`, `POST /api/chats/:id/messages` | `messages`, `chat_participants.last_read_at` |
-| 13 | Archive, delete and restore chats | Messages → **Select all** or pick chats → archive / delete; restore from Recently deleted | `GET /api/groups/:id/chats?view=`, `POST /api/chats/bulk` | `chat_participants` (per-person archived/deleted state) |
+| 13 | Archive, delete and restore chats | Messages → **Edit** → pick chats (or **Select all**) → archive / delete; **Archived** / **Recently deleted** links under the list to unarchive / restore | `GET /api/groups/:id/chats?view=`, `POST /api/chats/bulk` | `chat_participants` (per-person archived/deleted state) |
 | 14 | Read receipts | Open a chat: small avatars show who has read how far, and your latest message says **Delivered** until someone reads it | `GET /api/chats/:id/messages` (`reads`) | `chat_participants.last_read_at`, `messages` |
 | 15 | Typing indicator | Type in a chat: the other members see "Avery is typing…" within a few seconds, gone about 5 seconds after you stop | `POST`/`DELETE /api/chats/:id/typing`, `GET /api/chats/:id/messages` (`typing`) | `chat_participants.typing_at` |
 | 16 | AI conversation starters | Open a new match's chat: three "Need an opener?" chips. Tap one to fill the message box, then send it | On a match the server asks the Gemini API for 3 starters; `GET /api/chats/:id/messages` (`suggestions`), `POST /api/chats/:id/messages` (`suggestionId`) | `chat_suggestions` (`text`, `used_at`) |
@@ -276,8 +276,8 @@ aura's logo is a purple flame next to the "aura" wordmark. `client/src/component
 
 From the design review: VoiceOver struggled with the images on Find, and long names ran off the card.
 
-- **Real photos with alt text.** The Find card shows up to 3 members' uploaded photos, each described as "<name>, a member of <group>". Member avatars on the card and in the profile sheet use the person's photo too (marked decorative, since their name is right next to it). The profile sheet shows each uploaded photo as "<name>'s photo 1", "photo 2" and so on. The API sends each member's first uploaded photo as `photoUrl` in group cards.
-- **Groups with no photos yet.** The placeholder is announced once as "<group> has no photos yet" instead of VoiceOver reading "[Group photo]". Demo photo slots in the profile sheet read as "<name>'s photo 1 (not uploaded yet)".
+- **Real photos with alt text.** The Find card shows the group photo, or up to 3 members' pictures (uploaded photos first), each described as "<name>, a member of <group>". Member avatars on the card and in the profile sheet use the person's photo too (marked decorative, since their name is right next to it). The profile sheet shows each uploaded photo as "<name>'s photo 1", "photo 2" and so on. The API sends each member's main photo as `photoUrl` in group cards (and for chat senders, readers and friends); people without one get their illustrated avatar.
+- **Groups with no photos yet.** The hero shows members' illustrated avatars (each with alt text), so there's no "[Group photo]" placeholder anymore. The profile sheet shows only uploaded photos.
 - **Long names.** Group names wrap, even a single 40-plus-letter word. The city tag and member names shorten with "…" (the full name is still read out and shown on hover), and long names in the profile sheet wrap. Checked on phone (375px) and desktop (1280px) with a 60-character group name, a 43-letter one-word name and a long hyphenated person's name: nothing runs off the card, and axe finds no accessibility problems.
 
 ## Connect and Pass on Find
@@ -286,7 +286,7 @@ In two rounds of user testing, people found swiping confusing and thought Connec
 
 - **Labeled buttons.** Every card has **Pass** and **Connect** buttons. Screen readers hear the group's name too ("Connect with Film Fridays").
 - **Swipe as a shortcut.** On touch screens, swipe a card right to connect or left to pass. A "Connect" or "Pass" stamp appears once you've dragged far enough, and a short or mostly vertical drag does nothing, so scrolling still works. Mouse drags are ignored, so text on desktop stays selectable.
-- **Who you're choosing for.** A note above the card says "You're choosing for *your group*. Connect means your group wants to meet theirs, not that you join it." After a Connect, the toast says "Sent for *your group*!"
+- **Who you're choosing for.** One short line above the card says "For *your group*" with a **How it works** link (the explainer says Connect means your group wants to meet theirs, not that you join it). After a Connect, the toast says "Sent for *your group*!"
 - **First-time explainer.** The first time someone opens Find, a **How Find works** sheet opens: "Like a dating app, but for friend groups", plus what Connect, a match and Pass mean. **Got it** closes it for good on that browser (saved in `localStorage` as `aura.findExplainerSeen`), and the **How it works** link reopens it anytime.
 
 Lighthouse Accessibility on Find is 100 on phone and desktop, with the explainer open and closed.
@@ -305,15 +305,39 @@ With `npm run dev` running, `npm run verify:own-groups` checks all of this. If i
 
 ## Profile Photos
 
-People upload 1–3 real profile photos, on the Profile page and in profile setup.
+Everyone has **1 main photo + up to 3 more**, on the Profile page and in profile setup.
 
+- **Main photo.** It's shown big at the top of the profile, above the name and bio, and it's the person's avatar everywhere else: Find member lists, the member profile sheet, chat messages, read receipts and group member stacks. The first photo you add becomes your main photo. Tap any other photo → **Make main photo** to swap it with the current main photo; removing the main photo moves the next one up. In the database, the main photo is `user_photos.position = 1` and the 3 more are positions 2–4 (migration `006_main_photo.sql`; the unique `(user_id, position)` is `DEFERRABLE` so a swap is one `UPDATE`).
+- **Illustrated avatars.** Anyone without an uploaded main photo (including all the demo people, whose photos are labels only) gets an illustrated avatar instead of a blank box or initials. It's drawn in the browser from their user id with DiceBear's "Personas" style (`client/src/illustrated.js`), so the same person always looks the same; nothing is fetched or stored. Personas is by Draftbit, licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), via [DiceBear](https://www.dicebear.com/styles/personas/).
 - **Picking a photo.** **Add photo** opens the camera roll (or camera) on phones and the file picker on computers. JPEG, PNG and WebP up to 5 MB are accepted; iPhones convert HEIC photos to JPEG automatically. A wrong type or a file that's too big gets a clear message right away, before anything uploads.
 - **While it uploads.** The photo appears in its slot, dimmed, with a spinner and "Uploading…". When the server answers, it's replaced by the saved photo. If the upload fails, a friendly message explains why and nothing half-saved is left behind.
-- **Where it's stored.** The app sends the image file as the request body to `POST /api/me/photos/upload`. The server checks the type, size and free slot (max 3), uploads the file to the public Supabase Storage bucket `profile-photos` (path `<user id>/<random id>.<ext>`), and saves its public URL in `user_photos.image_url`. `DELETE /api/me/photos/:id` removes the row and the file. The server calls Storage's REST API with `fetch` (`server/src/lib/storage.js`), so no Supabase client library is needed.
+- **Where it's stored.** The app sends the image file as the request body to `POST /api/me/photos/upload`. The server checks the type, size and free slot (max 4: 1 main + 3 more), uploads the file to the public Supabase Storage bucket `profile-photos` (path `<user id>/<random id>.<ext>`), and saves its public URL in `user_photos.image_url`. `DELETE /api/me/photos/:id` removes the row and the file. The server calls Storage's REST API with `fetch` (`server/src/lib/storage.js`), so no Supabase client library is needed.
 - **Setup.** In Supabase, create a **public** bucket named `profile-photos` (done for Find Friends App). Then set `SUPABASE_SERVICE_ROLE_KEY` (Project Settings → API Keys → service_role) in `server/.env` locally and on the API service in Render; it uses the same `SUPABASE_URL` as sign-in. The service_role key is secret: never commit it or put it in the client. Without these settings, uploads answer `503 UPLOADS_NOT_SET_UP` and the rest of the app keeps working.
-- **Accessibility.** Each photo has alt text ("Avery's photo 1"), the upload status is announced (`role="status"`), errors use `role="alert"`, and the remove buttons are labeled. Lighthouse Accessibility on Profile is 100 on phone and desktop with real photos.
+- **Accessibility.** Each photo is a labeled button that opens its options ("Avery's main photo. Photo options"), photos in the options sheet and on member profiles have alt text ("Avery's main photo"), the upload status is announced (`role="status"`), and errors use `role="alert"`. Lighthouse Accessibility on Profile is 100 on phone and desktop with real photos.
 
-**Try it by hand.** Sign in as anyone, open Profile, remove a placeholder, then **Add photo** and pick an image. It shows "Uploading…", then your photo. In Supabase → Storage → `profile-photos` you'll see the file in a folder named after the user's id, and in the `user_photos` table its `image_url`.
+**Try it by hand.** Sign in as anyone, open Profile: a demo person shows their illustrated avatar. Tap it → **Upload a new main photo** and pick an image. It shows "Uploading…", then your photo big at the top (and as your avatar in Find and chats). Tap one of the 3 below → **Make main photo** to swap. In Supabase → Storage → `profile-photos` you'll see the file in a folder named after the user's id, and in the `user_photos` table its `image_url`.
+
+## Group Photo
+
+A group's **owner** can upload, replace or remove the group photo in **Profile → Manage group → Group photo** (it saves right away, separate from "Save changes"). Other members see it there with "Only the group's owner can change the group photo".
+
+- **Where it shows.** As the hero of the group's card on Find (instead of members' photos), on the group's avatar in Messages (chat rows, "Groups that liked you") and in the chat header, and on Profile → My groups. Groups without one keep their initials and the members' photos.
+- **API.** `PUT /api/groups/:id/photo` with the image file as the body (JPEG, PNG or WebP, up to 5 MB) and `DELETE /api/groups/:id/photo`; both answer with the updated group card. Anyone but the owner gets `403 OWNER_REQUIRED`. The file goes to the same `profile-photos` bucket under `groups/<group id>/`, and replacing or removing the photo deletes the old file. Group cards and chat rows send it as `photoUrl`.
+- **Database.** `friend_groups.photo_url` (migration `007_group_photo.sql`, additive). Run `npm run db:migrate` once on the shared database after merging.
+
+**Try it by hand.** Sign in as Avery (owner of Tuesday Crew) → Profile → Manage group → **Upload photo**. Then sign in as Maya: Messages and the Tuesday Crew chat header show it.
+
+## Decluttered Mobile Screens
+
+Sprint 2 review feedback was "too many words", "very crowded" and "less scrolling". On a 390px-wide phone:
+
+- **Find.** The whole card (photos, name, place, 3 interests + "+N", members) fits above **Pass / Connect**, so the bar never covers the members. The hero shows the group photo or up to 3 members' pictures (main photo or illustrated avatar), never "[Group photo]". The location shows once ("Provo, UT · 1.1 mi away"), members are one swipeable row of pictures and first names (tap for their profile), and the long "You're choosing for…" note is now "For *your group* · How it works".
+- **Profile.** About 1.6 screens instead of 2.3: one header card (main photo, name, city, about-me in one line, bio, 3 more photos), interests as plain chips with an **Edit** sheet to add or remove them (no more × on every chip), and each of My groups is one compact card: tap it to manage the group, **…** for Invite friends / Make active group / Manage group.
+- **Messages.** Select all, archive and delete live behind one **Edit** button (archive/delete stay disabled until a chat is picked; **Done** leaves). **Archived** and **Recently deleted** are links under the list. Request cards and chat rows are tighter.
+- **Onboarding.** The red "Still needed…" warning is now a checklist that ticks off as you go; interests show 8 suggestions + **More**.
+- **Tab bar.** Slimmer (62px), and every screen leaves room for it plus the iPhone home bar (`env(safe-area-inset-bottom)`), so content never ends up hidden behind it.
+
+Checked on phone and desktop: Lighthouse Accessibility 100 on Find, Messages, Profile and onboarding.
 
 ## Read Receipts
 

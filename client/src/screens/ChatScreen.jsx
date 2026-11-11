@@ -293,7 +293,7 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
               <div className={`msg ${m.mine ? 'msg--mine' : ''}`}>
                 <span className="sr-only">{m.mine ? 'You' : m.sender?.firstName ?? 'Former member'}: </span>
                 {!m.mine && (showSender && m.sender
-                  ? <Avatar initials={m.sender.initials} color={m.sender.avatarColor} size={36} />
+                  ? <Avatar initials={m.sender.initials} color={m.sender.avatarColor} size={36} src={m.sender.photoUrl} personId={m.sender.id} />
                   : <span className="msg__spacer" />)}
                 <div className="msg__bubble">{m.body}</div>
                 <span className="msg__time">{formatTime(m.createdAt)}</span>
@@ -369,7 +369,7 @@ function ReadBy({ readers, mine }) {
   return (
     <div className={`receipts ${mine ? 'receipts--mine' : ''}`} aria-live="off" title={`Read by ${names}`}>
       <span className="sr-only">Read by {names}</span>
-      {readers.slice(0, MAX_RECEIPT_AVATARS).map((r) => <Avatar key={r.id} initials={r.initials} color={r.avatarColor} size={20} />)}
+      {readers.slice(0, MAX_RECEIPT_AVATARS).map((r) => <Avatar key={r.id} initials={r.initials} color={r.avatarColor} size={20} src={r.photoUrl} personId={r.id} />)}
       {extra > 0 && <span aria-hidden="true">+{extra}</span>}
     </div>
   );

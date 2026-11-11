@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import Avatar, { AvatarStack } from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
@@ -22,8 +22,7 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
   };
   const addInterest = async (name) => {
     await saveInterests([...interests.map((i) => i.name), name]);
-    close();
-    toast(`Added ${name}. Your groups' shared interests are updated.`);
+    toast(`Added ${name}.`);
   };
   const removeInterest = async (interest) => {
     try {
@@ -33,12 +32,10 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
     }
   };
 
-  const about = [
-    ['Age', user.age],
-    ['Gender', user.gender],
-    ['Relationship', RELATIONSHIP_LABELS[user.relationshipStatus]],
-    ['Personality', user.personalityTraits.join(' · ')],
-  ];
+  // About me in one line, e.g. "21 · Woman · Single · Outgoing, Planner".
+  const details = [
+    user.age, user.gender, RELATIONSHIP_LABELS[user.relationshipStatus], user.personalityTraits.join(', '),
+  ].filter(Boolean).join(' · ');
 
   return (
     <div className="screen screen--profile">
@@ -52,53 +49,27 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
       <div className="profile-columns">
         <div className="profile-col">
           <section className="card">
-            <div className="profile-top">
-              <Avatar initials={user.initials} color={user.avatarColor} size={72} />
-              <div className="profile-top__info">
-                <h2 className="profile-top__name">{user.firstName} {user.lastName}</h2>
-                <div className="subtle">{user.city}</div>
+            <PhotoGrid photos={photos} ownerName={user.firstName} ownerId={user.id} avatarColor={user.avatarColor} onChanged={refreshMe}>
+              <div className="profile-top">
+                <div className="profile-top__info">
+                  <h2 className="profile-top__name">{user.firstName} {user.lastName}</h2>
+                  <div className="subtle">{user.city}</div>
+                </div>
+                <button type="button" className="btn btn--outline btn--sm" onClick={() => setSheet({ type: 'edit' })}>Edit</button>
               </div>
-              <button type="button" className="btn btn--outline btn--sm" onClick={() => setSheet({ type: 'edit' })}>Edit</button>
-            </div>
-            {user.bio && <p className="profile-bio">{user.bio}</p>}
+              {details && <p className="profile-details">{details}</p>}
+              {user.bio && <p className="profile-bio">{user.bio}</p>}
+            </PhotoGrid>
           </section>
 
           <section className="card">
             <div className="card__head">
-              <h2 className="card__title">Photos</h2>
-              <span className="muted-small">{photos.length} of 3</span>
+              <h2 className="card__title">Interests</h2>
+              <button type="button" className="link-btn" onClick={() => setSheet({ type: 'interest' })}>Edit</button>
             </div>
-            <PhotoGrid photos={photos} ownerName={user.firstName} onChanged={refreshMe} />
-          </section>
-
-          <section className="card">
-            <h2 className="card__title">About me</h2>
-            <dl className="about">
-              {about.map(([label, value]) => (
-                <div key={label}>
-                  <dt>{label}</dt>
-                  <dd>{value || '—'}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-
-          <section className="card">
-            <h2 className="card__title">Interests</h2>
-            <div className="chips">
-              {interests.map((i) => (
-                <span key={i.id} className="chip">
-                  {i.name}
-                  {interests.length > 1 && (
-                    <button type="button" className="chip__remove" aria-label={`Remove ${i.name}`} onClick={() => removeInterest(i)}>
-                      <Icon name="x" size={14} strokeWidth={2.5} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              <button type="button" className="chip chip--dashed" onClick={() => setSheet({ type: 'interest' })}>+ Add</button>
+            <div className="chips chips--compact">
+              {interests.map((i) => <span key={i.id} className="chip">{i.name}</span>)}
             </div>
-            <p className="hint">Changes here update your groups' shared interests.</p>
           </section>
 
         </div>
@@ -129,8 +100,21 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
         </Sheet>
       )}
       {sheet?.type === 'interest' && (
-        <Sheet title="Add an interest" onClose={close}>
+        <Sheet title="Your interests" onClose={close}>
+          <div className="chips" style={{ marginBottom: 18 }}>
+            {interests.map((i) => (
+              <span key={i.id} className="chip">
+                {i.name}
+                {interests.length > 1 && (
+                  <button type="button" className="chip__remove" aria-label={`Remove ${i.name}`} onClick={() => removeInterest(i)}>
+                    <Icon name="x" size={14} strokeWidth={2.5} />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
           <AddInterestForm current={interests} onAdd={addInterest} />
+          <p className="hint">Your groups' shared interests update too.</p>
         </Sheet>
       )}
       {sheet?.type === 'createJoin' && (
@@ -154,6 +138,7 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
           <ManageGroupForm
             group={sheet.group}
             onSaved={async () => { await refreshMe(); close(); toast('Group updated.'); }}
+            onPhotoChanged={refreshMe}
             onLeft={async () => { close(); await refreshMe(); toast(`You left ${sheet.group.name}.`); }}
           />
         </Sheet>
@@ -162,29 +147,43 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
   );
 }
 
+// One of your groups: tap the card to manage it; "…" has Invite friends and Make active.
 function MyGroupCard({ group, onSwitch, onInvite, onManage }) {
+  const [menu, setMenu] = useState(false);
+  const moreRef = useRef(null);
+  useEffect(() => {
+    if (!menu) return undefined;
+    const away = (e) => !moreRef.current?.contains(e.target) && setMenu(false);
+    const esc = (e) => e.key === 'Escape' && setMenu(false);
+    document.addEventListener('mousedown', away);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', away); document.removeEventListener('keydown', esc); };
+  }, [menu]);
   const topInterests = group.interests.slice(0, 3).map((i) => i.name).join(', ');
   return (
     <section className={`card mygroup ${group.isActive ? 'mygroup--active' : ''}`} aria-label={group.name}>
-      <div className="mygroup__head">
-        <Avatar initials={group.initials} color={group.avatarColor} size={60} shape="square" solid={group.isActive} />
-        <div>
-          <div className="mygroup__name">
-            {group.name} {group.isActive && <span className="badge">Active</span>}
-          </div>
-          <div className="mygroup__meta">
+      <button type="button" className="mygroup__main" onClick={onManage} aria-label={`Manage ${group.name}`}>
+        <Avatar initials={group.initials} color={group.avatarColor} size={52} shape="square" solid={group.isActive} src={group.photoUrl} />
+        <span className="mygroup__text">
+          <span className="mygroup__name">{group.name} {group.isActive && <span className="badge">Active</span>}</span>
+          <span className="mygroup__meta">
             {group.memberCount} of 10 members · {group.isFull ? 'Group is full' : topInterests || 'No interests yet'}
+          </span>
+        </span>
+      </button>
+      <div className="mygroup__more" ref={moreRef}>
+        <button type="button" className="icon-btn icon-btn--plain" aria-label={`More for ${group.name}`} aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((m) => !m)}>
+          <Icon name="more" />
+        </button>
+        {menu && (
+          <div className="menu menu--right" role="menu">
+            {!group.isFull && <button type="button" role="menuitem" className="menu__item" onClick={() => { setMenu(false); onInvite(); }}>Invite friends</button>}
+            {!group.isActive && <button type="button" role="menuitem" className="menu__item" onClick={() => { setMenu(false); onSwitch(); }}>Make active group</button>}
+            <button type="button" role="menuitem" className="menu__item" onClick={() => { setMenu(false); onManage(); }}>Manage group</button>
           </div>
-        </div>
-        {!group.isActive && <button type="button" className="btn btn--outline btn--sm" onClick={onSwitch}>Switch</button>}
+        )}
       </div>
-
-      <div className="mygroup__people">
-        <AvatarStack people={group.members} max={7} />
-        {!group.isFull && <button type="button" className="link-btn" onClick={onInvite}>+ Invite friends</button>}
-      </div>
-
-      <button type="button" className="btn btn--outline btn--block" onClick={onManage}>Manage group</button>
+      <div className="mygroup__people"><AvatarStack people={group.members} max={7} size={30} /></div>
     </section>
   );
 }

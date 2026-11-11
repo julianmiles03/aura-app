@@ -1,6 +1,6 @@
 import { forbidden } from '../errors.js';
 
-// Rule 1: bio, 1-3 photos, at least 1 interest, age, gender, relationship status, personality.
+// Rule 1: bio, 1-4 photos (1 main + 3 more), at least 1 interest, age, gender, relationship status, personality.
 export async function getOnboarding(db, userId) {
   const { rows: [r] } = await db.query(
     `SELECT u.bio, u.age, u.gender, u.relationship_status, cardinality(u.personality_traits) AS traits,

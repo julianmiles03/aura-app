@@ -41,7 +41,7 @@ erDiagram
     user_photos {
         bigint id PK
         bigint user_id FK
-        smallint position "1..3, unique per user"
+        smallint position "1 = main, 2..4 more; unique per user"
         varchar label
         text image_url
         timestamptz created_at
@@ -67,6 +67,7 @@ erDiagram
         numeric latitude
         numeric longitude
         varchar photo_label
+        text photo_url "group photo, or null"
         char avatar_color
         varchar invite_code UK
         bigint created_by FK
