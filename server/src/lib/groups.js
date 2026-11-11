@@ -27,7 +27,9 @@ export async function loadGroupCards(db, groupIds, { viewerGroupId = null, inclu
     db.query(
       `SELECT gm.group_id, gm.role, u.id, u.first_name, u.last_name, u.avatar_color,
               ARRAY(SELECT i.name FROM user_interests ui JOIN interests i ON i.id = ui.interest_id
-                    WHERE ui.user_id = u.id ORDER BY ui.added_at, i.name LIMIT 2) AS top_interests
+                    WHERE ui.user_id = u.id ORDER BY ui.added_at, i.name LIMIT 2) AS top_interests,
+              (SELECT p.image_url FROM user_photos p
+                WHERE p.user_id = u.id AND p.image_url IS NOT NULL ORDER BY p.position LIMIT 1) AS photo_url
        FROM group_memberships gm JOIN users u ON u.id = gm.user_id
        WHERE gm.group_id = ANY($1)
        ORDER BY gm.joined_at, u.id`,
@@ -70,6 +72,7 @@ export async function loadGroupCards(db, groupIds, { viewerGroupId = null, inclu
       avatarColor: m.avatar_color,
       role: m.role,
       topInterests: m.top_interests,
+      photoUrl: m.photo_url, // their first uploaded photo, or null (seed photos are labels only)
     })),
     interests: (interestsBy.get(g.id) ?? []).map((i) => ({
       id: i.interest_id, name: i.interest_name, memberCount: i.member_count, shared: i.shared,
