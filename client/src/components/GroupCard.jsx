@@ -70,7 +70,7 @@ export default function GroupCard({ group, position, total, onMemberClick }) {
         <div className="members">
           {group.members.map((m) => (
             <button key={m.id} type="button" className="member member--button" onClick={() => onMemberClick?.(m)} aria-label={`View ${m.firstName}'s profile`}>
-              <Avatar initials={m.initials} color={m.avatarColor} size={42} src={m.photoUrl} />
+              <Avatar initials={m.initials} color={m.avatarColor} size={42} src={m.photoUrl} personId={m.id} />
               <div>
                 <div className="member__name" title={m.firstName}>{m.firstName}</div>
                 <div className="member__interests">{m.topInterests.join(' · ') || 'No interests yet'}</div>

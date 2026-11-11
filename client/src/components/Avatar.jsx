@@ -1,3 +1,4 @@
+import { illustratedAvatar } from '../illustrated.js';
 import { Skeleton } from './Loading.jsx';
 
 // Initials on a pastel. People are circles, groups are rounded squares.
@@ -11,9 +12,11 @@ const INK_ON = {
   '#ECE8FF': '#4C1D95',
 };
 
-// Pass `src` to show a photo instead of initials. It stays decorative (alt="") because the
-// person's name is always next to it or in the surrounding button's label.
-export default function Avatar({ initials, color = '#ECE8FF', size = 44, shape = 'circle', className = '', solid = false, src }) {
+// Pass `src` to show a photo instead of initials. For a person, also pass `personId`: without an
+// uploaded main photo they get their illustrated avatar instead of initials. Either way it stays
+// decorative (alt="") because the person's name is always next to it or in the button's label.
+export default function Avatar({ initials, color = '#ECE8FF', size = 44, shape = 'circle', className = '', solid = false, src, personId }) {
+  if (!src && personId != null) src = illustratedAvatar(personId, color);
   if (src) {
     const radius = shape === 'circle' ? '50%' : Math.round(size * 0.3);
     return (
@@ -42,7 +45,7 @@ export function AvatarStack({ people, size = 34, max = 6 }) {
   return (
     <span className="avatar-stack" style={{ '--size': `${size}px` }}>
       {shown.map((p) => (
-        <Avatar key={p.id} initials={p.initials} color={p.avatarColor} size={size} className="avatar-stack__item" />
+        <Avatar key={p.id} initials={p.initials} color={p.avatarColor} size={size} className="avatar-stack__item" src={p.photoUrl} personId={p.id} />
       ))}
       {extra > 0 && <span className="avatar avatar-stack__item avatar-stack__more" style={{ width: size, height: size }}>+{extra}</span>}
     </span>

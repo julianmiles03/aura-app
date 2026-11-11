@@ -216,7 +216,7 @@ export function InviteFriends({ group, onChanged }) {
         const inGroup = f.groupIds.includes(group.id);
         return (
           <div key={f.id} className="person-row">
-            <Avatar initials={f.initials} color={f.avatarColor} size={40} />
+            <Avatar initials={f.initials} color={f.avatarColor} size={40} src={f.photoUrl} personId={f.id} />
             <span className="person-row__name">{f.firstName} {f.lastName}</span>
             {inGroup ? (
               <span className="muted-small">In group</span>
@@ -260,7 +260,7 @@ export function ManageGroupForm({ group, onSaved, onLeft }) {
       <h3 className="section-label">Members · {group.memberCount} of 10</h3>
       {currentGroup.members.map((m) => (
         <div key={m.id} className="person-row">
-          <Avatar initials={m.initials} color={m.avatarColor} size={40} />
+          <Avatar initials={m.initials} color={m.avatarColor} size={40} src={m.photoUrl} personId={m.id} />
           <span className="person-row__name">{m.firstName} {m.lastName}</span>
           {m.role === 'owner' && <span className="badge">Owner</span>}
           {group.role === 'owner' && m.role !== 'owner' && (
