@@ -3,6 +3,7 @@ import { api } from './api.js';
 import { Loader } from './components/Loading.jsx';
 import TabBar, { SideNav } from './components/TabBar.jsx';
 import { useToast } from './components/ui.jsx';
+import AdminPortal from './screens/AdminPortal.jsx';
 import { FinishAccount, SignIn, SignUp } from './screens/Auth.jsx';
 import ChatScreen from './screens/ChatScreen.jsx';
 import FindScreen from './screens/FindScreen.jsx';
@@ -12,7 +13,7 @@ import ProfileScreen from './screens/ProfileScreen.jsx';
 import { APP_PATH, authHref } from './routes.js';
 import { supabase } from './supabase.js';
 
-// Hash routes: #/find, #/messages, #/messages/:chatId, #/profile.
+// Hash routes: #/find, #/messages, #/messages/:chatId, #/profile, and for admins #/admin, #/admin/okrs.
 // Signed out: #/signup (what a new visitor sees) and #/signin?next=/messages/7 (back to where you were).
 function parseRoute() {
   const [path, query = ''] = window.location.hash.slice(1).split('?');
@@ -25,6 +26,7 @@ function parseRoute() {
     return { tab, auth: true, next: APP_PATH.test(next ?? '') ? next : null };
   }
   if (tab === 'messages' && id) return { tab: 'messages', chatId: Number(id), path, explicit };
+  if (tab === 'admin') return { tab, adminPage: id === 'okrs' ? 'okrs' : 'home', path: id === 'okrs' ? '/admin/okrs' : '/admin', explicit };
   const known = ['find', 'messages', 'profile', 'join'].includes(tab);
   return { tab: known ? tab : 'find', path: known ? fullPath : '/find', inviteCode: tab === 'join' ? new URLSearchParams(query).get('code') ?? '' : '', explicit };
 }
@@ -182,6 +184,9 @@ export default function App() {
     ) : (
       <Loader label="Loading…" />
     );
+  } else if (route.tab === 'admin') {
+    // The admin portal doesn't need a finished profile or a group; it does need users.is_admin.
+    return <AdminPortal page={route.adminPage} me={me} email={session.user.email} onSignOut={signOut} />;
   } else if (!me.onboarding.profileComplete) {
     content = <ProfileSetup me={me} setMe={setMe} refreshMe={refreshMe} />;
   } else if (route.tab === 'join') {
@@ -207,6 +212,9 @@ export default function App() {
       return (
         <div className="frame frame--desktop">
           <SideNav current={route.tab} unread={me.unreadMessages}>
+            {me.user.isAdmin && (
+              <a href="#/admin" className="btn btn--soft btn--block sidebar__admin">Admin portal</a>
+            )}
             <p className="sidebar__account">Signed in as <strong>{session.user.email}</strong></p>
             <button type="button" className="btn btn--outline btn--block" onClick={signOut}>Log out</button>
           </SideNav>

@@ -5,7 +5,7 @@ Mobile-first web app that helps friend groups find and meet other friend groups 
 Machine-specific notes (paths, accounts, local setup) belong in `CLAUDE.local.md`, which is git-ignored. Never put them here.
 
 ## Stack
-- `client/`: React 19 + Vite 7, plain CSS (`client/src/styles.css` holds the design tokens). Hash routes: `#/find`, `#/messages`, `#/messages/:chatId`, `#/profile`. There is no Map tab; it's out of scope.
+- `client/`: React 19 + Vite 7, plain CSS (`client/src/styles.css` holds the design tokens). Hash routes: `#/find`, `#/messages`, `#/messages/:chatId`, `#/profile`, and for admins `#/admin` and `#/admin/okrs` (`screens/AdminPortal.jsx`, outside the onboarding gate). There is no Map tab; it's out of scope.
 - `server/`: Node + Express 5 REST API. It talks to Postgres with `pg` only. Don't add the Supabase JS client.
 - `db/`: `schema.sql` (drops and recreates everything) and `seed.sql` (truncates, then inserts demo data).
 - `docs/`: ERD as `erd.dbml`, `erd.mmd` and `erd.png` (`npx @mermaid-js/mermaid-cli -i docs/erd.mmd -o docs/erd.png`).
@@ -43,7 +43,7 @@ Machine-specific notes (paths, accounts, local setup) belong in `CLAUDE.local.md
 - Loading states come from `components/Loading.jsx`: `Skeleton` rows built from the real rows' classes where the layout is known, otherwise `Loader` (spinner and label). Mark the loading area `aria-busy="true"` and pair skeletons with a `LoadingStatus` (`role="status"`). The global `prefers-reduced-motion` rule in `styles.css` stops every animation.
 - Layout: below 1024px wide it's the phone layout (430px column, bottom tab bar). At 1024px and up, `App.jsx` (`useMediaQuery`) switches to the desktop layout: a sidebar (`SideNav`), Messages as list + chat panes, Find card side by side, and Profile in two columns. All desktop CSS lives in the `min-width: 1024px` blocks at the end of `styles.css`. Keep phone styles outside those blocks.
 - Schema changes go in `db/schema.sql` (and the ERD files), never only by hand in the Supabase dashboard. To change the live shared database without wiping it, also add a re-runnable file in `db/migrations/` and run `npm run db:migrate`.
-- OKRs (KR1-KR4) come from the `okr_metrics` view; README "OKR Metrics" says which table each one reads. Never store or cache a KR number: the admin portal reads them live from `GET /api/admin/okrs` (`server/src/routes/admin.js`), which only answers users with `users.is_admin = true` (`403 NOT_ADMIN`). Admins are set by hand in the SQL Editor, never by a migration or the seed.
+- OKRs (KR1-KR4) come from the `okr_metrics` view; README "OKR Metrics" says which table each one reads. Never store or cache a KR number: the admin portal's OKR Dashboard (`#/admin/okrs`) reads them live from `GET /api/admin/okrs` (`server/src/routes/admin.js`), which only answers users with `users.is_admin = true` (`403 NOT_ADMIN`). The only fixed numbers are the KR targets (`TARGETS` in `admin.js`). Admins are set by hand in the SQL Editor, never by a migration or the seed.
 - AI calls never run inside a request or a transaction, and nothing may depend on one succeeding: `queueSuggestions` starts the call after the match is committed and returns at once, and every failure (no key, timeout, bad answer) just means no openers. Whatever the model returns is checked (`readStarters`) before it's saved or shown. Send it group-level data only (names, cities, interests), never member names or messages.
 
 ## Business rules (enforced on the server or in the database)
