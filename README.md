@@ -68,6 +68,25 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
 - **Admin portal:** part of the same React website (`#/admin`), behind the normal sign-in plus `users.is_admin`. Its OKR Dashboard reads `GET /api/admin/okrs` from our Express server, which counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). Maintain Users and Maintain Records aren't built yet. The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
 
+## Data Flow Diagrams
+
+### Level 0: Context
+
+![Level 0 data flow diagram of aura, described below](docs/dfd-level-0.jpg)
+
+The whole app as one process. People send in their profiles and group choices and get recommendations and chats back. When two groups match, Google's Gemini API gets their group names, cities and interests (never member names or messages) and sends back conversation starters.
+
+### Level 1: Core Workflows
+
+![Level 1 data flow diagram of aura's five core processes and its database, described below](docs/dfd-level-1.jpg)
+
+- **1.0 Set Up Profiles and Groups:** sign up, set up a profile, create or join a group.
+- **2.0 Rank Group Recommendations:** Find ranks other groups for your active group by shared interests, then mutual friends, then location.
+- **3.0 Record Connect or Pass:** every Connect or Pass is saved in `group_likes`.
+- **4.0 Create Match and Chat:** when both groups say Connect, aura saves the match and opens a group chat for both groups. Then it asks Gemini for three conversation starters, which are checked before they're saved.
+- **5.0 Exchange Chat Messages:** the group chat, with live updates.
+- **D1 Aura Application Data:** our Postgres database on Supabase (see the [ERD](#erd)).
+
 ## ERD
 
 ![aura entity relationship diagram](docs/erd.png)
