@@ -12,6 +12,10 @@ async function requireAdmin(req, res, next) {
   next();
 }
 
+// Team Aura's goal for each Key Result, as a percentage (README "OKR Metrics"). These are the
+// targets the dashboard compares against; the KR values themselves always come from the database.
+const TARGETS = { KR1: 50, KR2: 40, KR3: 60, KR4: 25 };
+
 // The four Key Results, read live from the okr_metrics view (nothing is cached or stored).
 // pct is 0-100 with one decimal, or null while outOf is 0 (e.g. KR3/KR4 before any group has matched).
 router.get('/admin/okrs', requireAdmin, async (req, res) => {
@@ -23,6 +27,7 @@ router.get('/admin/okrs', requireAdmin, async (req, res) => {
     keyResults: [
       {
         id: 'KR1',
+        target: TARGETS.KR1,
         label: 'Groups that connect with another group',
         count: o.connected_groups,
         outOf: o.total_groups,
@@ -31,6 +36,7 @@ router.get('/admin/okrs', requireAdmin, async (req, res) => {
       },
       {
         id: 'KR2',
+        target: TARGETS.KR2,
         label: 'Groups with 4+ people',
         count: o.four_plus_groups,
         outOf: o.total_groups,
@@ -39,6 +45,7 @@ router.get('/admin/okrs', requireAdmin, async (req, res) => {
       },
       {
         id: 'KR3',
+        target: TARGETS.KR3,
         label: 'Connected groups that exchange messages',
         count: o.messaging_groups,
         outOf: o.connected_groups,
@@ -47,6 +54,7 @@ router.get('/admin/okrs', requireAdmin, async (req, res) => {
       },
       {
         id: 'KR4',
+        target: TARGETS.KR4,
         label: 'Connected groups that meet up',
         count: o.meetup_groups,
         outOf: o.connected_groups,

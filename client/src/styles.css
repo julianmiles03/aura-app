@@ -14,6 +14,8 @@
   --warm-ink: #9a3412;
   --warm-soft: #ffe9df;
   --danger: #c2312a;
+  --good: #146c34; /* on track (admin OKR dashboard); 5.7:1 on --good-soft */
+  --good-soft: #e2f4e8;
   --chip-gray: #f0eff4;
   --skeleton: rgba(22, 21, 28, 0.08);
   --skeleton-shine: rgba(22, 21, 28, 0.03);
@@ -1032,9 +1034,92 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .muted-small { color: var(--muted); font-size: 14px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
+/* ---------- Admin portal (#/admin, #/admin/okrs) ---------- */
+.frame--admin { --tabbar-h: 0px; }
+.admin-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px var(--gutter) 0; }
+.admin-bar__brand { font-size: 30px; text-decoration: none; }
+.admin-bar__tag {
+  margin-left: 0.35em;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--ink);
+  color: #fff;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.screen--admin { padding-bottom: 40px; }
+.admin-signed-in { color: var(--muted); margin: -6px 0 18px; overflow-wrap: anywhere; }
+.admin-signed-in strong { color: var(--ink); font-weight: 600; }
+.admin-tiles { list-style: none; margin: 0 0 20px; padding: 0; display: grid; gap: 12px; }
+.admin-tiles > li { display: flex; }
+.admin-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px 18px;
+  border-radius: var(--radius-inner);
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+  text-decoration: none;
+}
+a.admin-tile:hover { border-color: var(--accent); }
+.admin-tile__icon { display: inline-grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); flex: none; }
+.admin-tile__text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 1; min-width: 0; }
+.admin-tile__title { font-family: var(--font-head); font-size: 19px; font-weight: 700; }
+.admin-tile__desc { color: var(--muted); font-size: 15px; }
+.admin-tile__go { display: inline-flex; align-items: center; margin-top: 8px; color: var(--accent-ink); font-weight: 700; font-size: 15px; }
+.admin-tile--soon { background: transparent; border-style: dashed; border-color: #cfccdb; cursor: default; }
+.admin-tile--soon .admin-tile__icon { background: var(--chip-gray); color: var(--muted); }
+.admin-tile__soon { margin-top: 8px; padding: 4px 10px; border-radius: 999px; background: var(--chip-gray); color: var(--muted); font-size: 13px; font-weight: 700; }
+.admin-denied { margin-top: 24px; }
+.admin-denied h1 { font-size: 24px; margin-bottom: 8px; }
+.profile-admin { margin-top: 8px; }
+
+.admin-back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; margin-top: 6px; color: var(--accent-ink); font-weight: 700; text-decoration: none; }
+.okr-head { padding-top: 2px; flex-wrap: wrap; }
+.okr-refresh { min-width: 136px; }
+.okr-meta { color: var(--muted); margin: -4px 0 16px; font-size: 15px; }
+.okr-meta strong { color: var(--ink); }
+.okr-error { margin-bottom: 16px; }
+.okr-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.okr-grid > li { display: flex; }
+.okr-card { margin: 0; width: 100%; display: flex; flex-direction: column; gap: 10px; }
+.okr-card__top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.okr-card__id { display: inline-grid; place-items: center; min-width: 46px; height: 28px; padding: 0 8px; border-radius: 10px; background: var(--ink); color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.04em; }
+.okr-status { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 0 12px; border-radius: 999px; font-size: 14px; font-weight: 700; }
+.okr-status--met { background: var(--good-soft); color: var(--good); }
+.okr-status--below { background: var(--warm-soft); color: var(--warm-ink); }
+.okr-status--none { background: var(--chip-gray); color: var(--muted); }
+.okr-card__title { font-size: 20px; font-weight: 700; line-height: 1.2; }
+.okr-figures { display: flex; align-items: flex-end; gap: 28px; margin: 4px 0 0; }
+.okr-figures > div { display: grid; }
+.okr-figures dt { font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.okr-figures dd { margin: 0; font-family: var(--font-head); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; }
+.okr-figures__now dd { font-size: 48px; }
+.okr-card--met .okr-figures__now dd { color: var(--good); }
+.okr-figures__target dd { font-size: 26px; color: var(--muted); }
+.okr-bar { position: relative; display: block; height: 12px; border-radius: 6px; background: var(--chip-gray); margin: 6px 0 4px; }
+.okr-bar__fill { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: var(--accent); transition: width 0.4s ease; }
+.okr-card--met .okr-bar__fill { background: var(--good); }
+.okr-bar__target { position: absolute; top: -5px; bottom: -5px; width: 3px; margin-left: -1.5px; border-radius: 2px; background: var(--ink); }
+.okr-count { margin: 0; font-size: 17px; }
+.okr-gap { margin: 0; font-weight: 600; font-size: 15px; }
+.okr-source { margin: auto 0 0; padding-top: 10px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+.okr-source__table { white-space: nowrap; }
+.okr-source code { font-size: 13px; background: var(--chip-gray); padding: 1px 6px; border-radius: 6px; color: var(--ink); }
+.okr-foot { color: var(--muted); font-size: 14px; margin: 18px 0 0; }
+
 @media (max-width: 380px) {
   :root { --gutter: 16px; }
   .page-title, .wordmark { font-size: 34px; }
+  .admin-bar__brand { font-size: 26px; }
   .gcard__name { font-size: 26px; }
   .like-row__actions .btn { padding: 0 12px; }
 }
@@ -1168,4 +1253,21 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 }
 @media (min-width: 1024px) {
   .group-switch__pill { max-width: 340px; }
+}
+
+/* Admin portal on wide screens: tools side by side, KR cards two by two. */
+@media (min-width: 1024px) {
+  .frame--admin { max-width: 1180px; box-shadow: none; }
+  .admin-bar { padding: 24px 40px 0; }
+  .frame--admin .screen { padding: 12px 40px 56px; }
+  .admin-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .admin-tile { flex-direction: column; align-items: stretch; min-height: 200px; padding: 22px; }
+  .admin-tile__icon { align-self: flex-start; }
+  .admin-tile__desc { margin-bottom: 12px; }
+  .admin-tile__go, .admin-tile__soon { margin-top: auto; }
+  .admin-signout { max-width: 320px; }
+  .okr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .okr-card { padding: 26px 28px; }
+  .okr-figures__now dd { font-size: 60px; }
+  .sidebar__admin { margin-bottom: 12px; }
 }

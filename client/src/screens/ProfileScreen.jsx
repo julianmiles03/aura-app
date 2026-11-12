@@ -90,6 +90,12 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
             />
           ))}
 
+          {user.isAdmin && (
+            <a href="#/admin" className="btn btn--soft btn--block profile-admin">
+              <Icon name="chart" />
+              Admin portal
+            </a>
+          )}
           <button type="button" className="btn btn--outline btn--block profile-signout" onClick={onSignOut}>Log out</button>
         </div>
       </div>

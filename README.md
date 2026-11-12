@@ -52,9 +52,9 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 15 | Typing indicator | Type in a chat: the other members see "Avery is typing…" within a few seconds, gone about 5 seconds after you stop | `POST`/`DELETE /api/chats/:id/typing`, `GET /api/chats/:id/messages` (`typing`) | `chat_participants.typing_at` |
 | 16 | AI conversation starters | Open a new match's chat: three "Need an opener?" chips. Tap one to fill the message box, then send it | On a match the server asks the Gemini API for 3 starters; `GET /api/chats/:id/messages` (`suggestions`), `POST /api/chats/:id/messages` (`suggestionId`) | `chat_suggestions` (`text`, `used_at`) |
 | 17 | We met up! | In a match chat, **We met up!** under the header → **Yes, we met up**; both groups then see "You met up on Oct 30" | `POST /api/chats/:id/meetup`, `GET /api/chats/:id/messages` (`meetup`) | `meetups` (feeds KR4) |
-| 18 | OKR dashboard data | The admin portal shows KR1-KR4, recalculated on every refresh | `GET /api/admin/okrs` (admins only) | `okr_metrics` view, `users.is_admin` |
+| 18 | OKR Dashboard | An admin opens **Admin portal** (on Profile, or in the desktop sidebar) → **OKR Dashboard**: KR1-KR4 against their targets, with the raw counts. **Refresh** reads them again | `GET /api/admin/okrs` (admins only) | `okr_metrics` view, `users.is_admin` |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), and slices 17-18 in [OKR Metrics](#okr-metrics).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), and slice 18 in [OKR Dashboard](#okr-dashboard).
 
 ### Sprint 2 JW verification
 
@@ -66,8 +66,7 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 
 - **Customer app:** users use the React website, which sends requests to our Express server. The server saves and loads data in Supabase, which also handles logins. Both run live on Render.
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
-- **Admin portal (planned, AWS):** an admin uses HTML/CSS pages backed by an Express server and its own database. Its OKR dashboard reads `GET /api/admin/okrs` (see [Admin dashboard API](#admin-dashboard-api)).
-- **Where the apps connect:** the admin server reads app data from Supabase.
+- **Admin portal:** part of the same React website (`#/admin`), behind the normal sign-in plus `users.is_admin`. Its OKR Dashboard reads `GET /api/admin/okrs` from our Express server, which counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). Maintain Users and Maintain Records aren't built yet. The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
 
 ## ERD
 
@@ -85,7 +84,7 @@ Business rules are enforced in the database, not just the UI:
 
 ## OKR Metrics
 
-All four Key Results are computed automatically by the `okr_metrics` view (in [`db/schema.sql`](db/schema.sql)). It's one row, recalculated from the live tables every time you read it, so nothing has to be counted by hand or kept in sync. Every number comes from real user activity in the app. The admin portal's OKR dashboard reads it through `GET /api/admin/okrs` (below). You can also run `SELECT * FROM okr_metrics;` in Supabase's **SQL Editor**.
+All four Key Results are computed automatically by the `okr_metrics` view (in [`db/schema.sql`](db/schema.sql)). It's one row, recalculated from the live tables every time you read it, so nothing has to be counted by hand or kept in sync. Every number comes from real user activity in the app. The [OKR Dashboard](#okr-dashboard) in the admin portal reads it through `GET /api/admin/okrs` (below). You can also run `SELECT * FROM okr_metrics;` in Supabase's **SQL Editor**.
 
 | KR | Measures | Column (count → percentage) | Formula | What updates it |
 |---|---|---|---|---|
@@ -110,9 +109,28 @@ All four Key Results are computed automatically by the `okr_metrics` view (in [`
 - **One per match:** a match keeps its first meetup. Tapping again, or both groups tapping at the same moment, doesn't add a second row: the API answers `201` when it recorded the meetup and `200` when one already existed. The match row is locked while it checks, so two simultaneous taps can't both insert.
 - **Afterward:** both groups see "You met up on Oct 30 · confirmed by Avery" in place of the button. The other group's open chat picks it up on its next poll (within about 5 seconds), because `GET /api/chats/:id/messages` (and `?after=`) returns `meetup: { metAt, confirmedBy } | null`.
 
+### OKR Dashboard
+
+This is where we track KR1-KR4, and what we show in the KR video and the live demo. It's in the admin portal, inside the app.
+
+- **Opening it:** sign in with an admin account (see [below](#admin-dashboard-api) for how to make one), then go to **Profile → Admin portal → OKR Dashboard**. On desktop, **Admin portal** is also in the sidebar. The direct links are [`/#/admin`](https://aura-is401.onrender.com/#/admin) and [`/#/admin/okrs`](https://aura-is401.onrender.com/#/admin/okrs); if you're signed out, they go through Sign in and then open the page. Other users don't get the link, and if they open the URL they see "Admins only" (the API answers them with `403 NOT_ADMIN`). The portal's other two tools, **Maintain Users** and **Maintain Records**, are marked "Coming soon".
+- **What each KR card shows:** the current percentage next to the target, **On track** or **Below target**, the raw counts (for example "6 of 10 groups"), how far it is from the target ("2 more groups to reach the target" or "10 points above target"), and the action and table that move it. KR3 and KR4 show "No data yet" until some group has matched.
+- **When it updates:** the numbers load when the page opens, and **Refresh** reads them again. The line under the title shows when they were read. There are no manual numbers: every value is counted from real activity by `okr_metrics`. The only fixed numbers are the targets.
+- **Targets:** set in `TARGETS` in [`server/src/routes/admin.js`](server/src/routes/admin.js). Change them there.
+
+  | KR | Target |
+  |---|---|
+  | KR1: groups that connect with another group | 50% |
+  | KR2: groups with 4+ people | 40% |
+  | KR3: connected groups that exchange messages | 60% |
+  | KR4: connected groups that meet up | 25% |
+
+- **Demoing it:** open the dashboard in one window and the app, signed in as a different demo account, in another. Do one of the actions in [Which table or event drives each KR](#which-table-or-event-drives-each-kr), then click **Refresh** on the dashboard to show the number change.
+- **Phone and desktop:** phones get one column. From 1024px wide, the three tools sit side by side and the KR cards are two by two. Lighthouse Accessibility scores 100 on phone and desktop for the portal home, the dashboard (loaded and loading) and the "Admins only" page.
+
 ### Admin dashboard API
 
-David's admin portal shows the KRs from `GET /api/admin/okrs`. It needs a signed-in user (`Authorization: Bearer`, like every other route) whose `users.is_admin` is `true`; anyone else gets `403 NOT_ADMIN`. `GET /api/me` includes `user.isAdmin`, so the app can tell whether to offer the portal. The numbers are read live from `okr_metrics` on every request (no caching), so refreshing the dashboard after a user action shows the new value. If the portal calls the API from a browser on its own domain, add that domain to `CORS_ORIGIN` on aura-is401-api (comma-separated), or the browser blocks the request.
+The [OKR Dashboard](#okr-dashboard) shows the KRs from `GET /api/admin/okrs`. It needs a signed-in user (`Authorization: Bearer`, like every other route) whose `users.is_admin` is `true`; anyone else gets `403 NOT_ADMIN`. `GET /api/me` includes `user.isAdmin`, so the app can tell whether to offer the portal. The numbers are read live from `okr_metrics` on every request (no caching), so refreshing the dashboard after a user action shows the new value. The dashboard is part of the aura website, so the API already allows it. If another site ever calls the API from a browser, add that site's domain to `CORS_ORIGIN` on aura-is401-api (comma-separated), or the browser blocks the request.
 
 ```json
 {
@@ -120,15 +138,15 @@ David's admin portal shows the KRs from `GET /api/admin/okrs`. It needs a signed
   "totalGroups": 25,
   "connectedGroups": 15,
   "keyResults": [
-    { "id": "KR1", "label": "Groups that connect with another group", "count": 15, "outOf": 25, "pct": 60, "drivenBy": "group_matches: two groups both tap Connect" },
-    { "id": "KR2", "label": "Groups with 4+ people", "count": 6, "outOf": 25, "pct": 24, "drivenBy": "group_memberships: a 4th member joins a group" },
-    { "id": "KR3", "label": "Connected groups that exchange messages", "count": 9, "outOf": 15, "pct": 60, "drivenBy": "messages: both groups in a match send at least one message" },
-    { "id": "KR4", "label": "Connected groups that meet up", "count": 0, "outOf": 15, "pct": 0, "drivenBy": "meetups: someone taps \"We met up!\" in a match chat" }
+    { "id": "KR1", "label": "Groups that connect with another group", "target": 50, "count": 15, "outOf": 25, "pct": 60, "drivenBy": "group_matches: two groups both tap Connect" },
+    { "id": "KR2", "label": "Groups with 4+ people", "target": 40, "count": 6, "outOf": 25, "pct": 24, "drivenBy": "group_memberships: a 4th member joins a group" },
+    { "id": "KR3", "label": "Connected groups that exchange messages", "target": 60, "count": 9, "outOf": 15, "pct": 60, "drivenBy": "messages: both groups in a match send at least one message" },
+    { "id": "KR4", "label": "Connected groups that meet up", "target": 25, "count": 0, "outOf": 15, "pct": 0, "drivenBy": "meetups: someone taps \"We met up!\" in a match chat" }
   ]
 }
 ```
 
-`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. To make someone an admin, run this in Supabase's **SQL Editor** (`users.id` is in the Table Editor):
+`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. `target` is our goal for that KR, as a percentage. To make someone an admin, run this in Supabase's **SQL Editor** (`users.id` is in the Table Editor):
 
 ```sql
 UPDATE users SET is_admin = true WHERE id = <their users.id>;

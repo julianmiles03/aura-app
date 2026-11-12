@@ -8,6 +8,7 @@ const PATHS = {
   userPlus: <><circle cx="9.5" cy="8" r="3.5" /><path d="M3 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6" /></>,
   chevronDown: <path d="m6 9 6 6 6-6" />,
   chevronLeft: <path d="m15 6-6 6 6 6" />,
+  chevronRight: <path d="m9 6 6 6-6 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
   pencil: <path d="M15.5 4.5 19.5 8.5 8.5 19.5H4.5v-4L15.5 4.5Z" />,
   archive: <><rect x="3.5" y="4" width="17" height="4.5" rx="1" /><path d="M5 8.5V19a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8.5M10 12.5h4" /></>,
@@ -22,6 +23,8 @@ const PATHS = {
   logout: <path d="M14 4.5h4a1.5 1.5 0 0 1 1.5 1.5v12a1.5 1.5 0 0 1-1.5 1.5h-4M10 16.5 5.5 12 10 7.5M5.5 12H15" />,
   users: <><circle cx="9" cy="8.5" r="3.5" /><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 5.2a3.5 3.5 0 0 1 0 6.6M18.5 14.5a6.5 6.5 0 0 1 3 5.5" /></>,
   more: <><circle cx="5.5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="18.5" cy="12" r="1.4" /></>,
+  chart: <path d="M4 4.5V19a.5.5 0 0 0 .5.5H20M8.5 15.5v-4M12.5 15.5V8M16.5 15.5v-6" />,
+  refresh: <><path d="M19.5 12a7.5 7.5 0 0 1-13.1 5" /><path d="M4.5 12a7.5 7.5 0 0 1 13.1-5" /><path d="M18 3.5V7.5h-4M6 20.5v-4h4" /></>,
   sparkle: <path d="M12 3.5Q13.2 10.8 20.5 12 13.2 13.2 12 20.5 10.8 13.2 3.5 12 10.8 10.8 12 3.5Z" />,
 };
 
