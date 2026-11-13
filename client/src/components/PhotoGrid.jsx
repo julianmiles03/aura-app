@@ -93,7 +93,7 @@ export default function PhotoGrid({ photos, ownerName, ownerId, avatarColor, onC
       <div className="photos photos--extra">
         {extras.map((p) => (
           <button key={p.id} type="button" className="photo" onClick={() => setSelected(p)} disabled={busy}
-            aria-label={p.imageUrl ? `${ownerName}'s ${name(p)}. Photo options` : `${name(p)}, not uploaded yet. Photo options`}>
+            aria-label={p.imageUrl ? `${ownerName}'s ${name(p)}. Photo options` : `No photo yet (${name(p)}). Photo options`}>
             {p.imageUrl ? <img className="photo__img" src={p.imageUrl} alt="" /> : <span className="photo__empty" aria-hidden="true">No photo yet</span>}
           </button>
         ))}
