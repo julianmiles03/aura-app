@@ -168,10 +168,10 @@ function MyGroupCard({ group, onSwitch, onInvite, onManage }) {
   const topInterests = group.interests.slice(0, 3).map((i) => i.name).join(', ');
   return (
     <section className={`card mygroup ${group.isActive ? 'mygroup--active' : ''}`} aria-label={group.name}>
-      <button type="button" className="mygroup__main" onClick={onManage} aria-label={`Manage ${group.name}`}>
+      <button type="button" className="mygroup__main" onClick={onManage}>
         <Avatar initials={group.initials} color={group.avatarColor} size={52} shape="square" solid={group.isActive} src={group.photoUrl} />
         <span className="mygroup__text">
-          <span className="mygroup__name">{group.name} {group.isActive && <span className="badge">Active</span>}</span>
+          <span className="mygroup__name"><span className="sr-only">Manage </span>{group.name} {group.isActive && <span className="badge">Active</span>}</span>
           <span className="mygroup__meta">
             {group.memberCount} of 10 members · {group.isFull ? 'Group is full' : topInterests || 'No interests yet'}
           </span>
