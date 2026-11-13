@@ -417,6 +417,10 @@ Sprint 2 review feedback was "too many words", "very crowded" and "less scrollin
 
 Checked on phone and desktop: Lighthouse Accessibility 100 on Find, Messages, Profile and onboarding.
 
+## Accessibility QA
+
+Lighthouse Accessibility is **100 on every page**, phone and desktop: sign in, onboarding, Find, Messages, Chat, Profile, Admin portal and OKR Dashboard (Definition of Done: 90+). The live site has 0 axe-core WCAG A/AA violations, and every page passes the 375px / 1280px checks (no sideways scrolling, no overflowing text, 44px buttons, Find card above Pass / Connect). Scores and method: [`docs/accessibility-qa.md`](docs/accessibility-qa.md).
+
 ## Read Receipts
 
 Under an open chat's messages, small avatars show who has read how far, the way Messenger does.
