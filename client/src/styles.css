@@ -955,6 +955,8 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .member-profile__main { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 20px; background: var(--accent-soft); margin-bottom: 14px; }
 .member-profile__who h3 { font-size: 24px; font-weight: 800; }
 .member-profile__photos { margin: 18px 0; }
+.member-profile__photos .photo { aspect-ratio: 1; }
+.photo--none { background: var(--accent-soft); color: var(--accent-ink); display: grid; place-items: center; }
 .member-profile .chips { margin: 14px 0; }
 
 /* ---------- Onboarding ---------- */
