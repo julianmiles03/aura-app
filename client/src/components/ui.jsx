@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { friendlyError } from '../friendlyError.js';
 import Icon from './Icon.jsx';
 
 export function Sheet({ title, onClose, children }) {
@@ -37,9 +38,10 @@ export function Field({ label, children }) {
   );
 }
 
-export function FormError({ error }) {
+// API errors (they have a code) get their plain-language text; other errors show their own message.
+export function FormError({ error, id }) {
   if (!error) return null;
-  return <div className="form-error" role="alert">{error.message ?? String(error)}</div>;
+  return <div id={id} className="form-error" role="alert">{error.code ? friendlyError(error) : error.message ?? String(error)}</div>;
 }
 
 // Submit handler helper: tracks busy/error state around an async action.

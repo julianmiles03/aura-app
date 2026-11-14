@@ -40,9 +40,9 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 3 | Profile photos | Profile (or profile setup) → **Add photo** → pick an image; it uploads with a preview. Tap a photo → **Make main photo** or **Remove photo** (any but the last) | `POST /api/me/photos/upload`, `POST /api/me/photos/:id/main`, `DELETE /api/me/photos/:id` | `user_photos.image_url` + Supabase Storage bucket `profile-photos` |
 | 4 | Onboarding gate | A user with no group sees "Create or join a group" instead of the app | any group endpoint → `403 NO_GROUP` | `group_memberships` |
 | 5 | Create a group | Gate or Profile → **Create a group** | `POST /api/groups` | `friend_groups`, `group_memberships`, `users.active_group_id` |
-| 6 | Join with an invite code | Enter a code; a full group shows "already has 10 members" | `POST /api/groups/join` → `409 GROUP_FULL` when full | `group_memberships` (`group_member_cap` trigger) |
-| 7 | Invite a friend to your group | Profile → **Invite friends** → pick a friend | `GET /api/me/friends`, `POST /api/groups/:id/members` | `friendships`, `group_memberships`, `chat_participants` |
-| 8 | Edit group and leave group | Profile → edit group name, or **Leave group** | `PATCH /api/groups/:id`, `DELETE /api/groups/:id/members/me` | `friend_groups`, `group_memberships`, `chat_participants` |
+| 6 | Join with an invite code | Enter a code (or paste the invite link); a wrong code says so under the field, a full group shows "already has 10 members" | `POST /api/groups/join` → `400 INVALID_INVITE_CODE`, `404 INVITE_NOT_FOUND`, `409 GROUP_FULL` | `group_memberships` (`group_member_cap` trigger) |
+| 7 | Invite a friend to your group | Profile → **Invite friends**, or Manage group → **Add members** → pick a friend | `GET /api/me/friends`, `POST /api/groups/:id/members` | `friendships`, `group_memberships`, `chat_participants` |
+| 8 | Manage group | Profile → tap a group: edit name and city, group photo, remove and add members, **Leave group** | `PATCH /api/groups/:id`, `DELETE /api/groups/:id/members/:userId`, `DELETE /api/groups/:id/members/me` | `friend_groups`, `group_memberships`, `chat_participants` |
 | 9 | Switch active group | Group switcher on Find, "Chatting as" on Messages, or Profile → a group's **…** → **Make active group** | `PATCH /api/me/active-group` | `users.active_group_id` (composite FK to memberships) |
 | 10 | Find, Connect and Pass | Find shows one ranked group at a time; **Connect** or **Pass** loads the next | `GET /api/recommendations`, `POST /api/groups/:id/likes` | `group_likes`; a mutual Connect creates the match and chat |
 | 11 | Accept or decline a request | Messages → "Groups that liked you" → **Accept** (new chat appears) or decline | `GET /api/groups/:id/incoming-likes`, `POST /api/likes/:id/accept`, `POST /api/likes/:id/decline` | `group_likes`, `group_matches`, `chats`, `chat_participants` in one transaction |
@@ -404,6 +404,38 @@ A group's **owner** can upload, replace or remove the group photo in **Profile �
 - **Database.** `friend_groups.photo_url` (migration `007_group_photo.sql`, additive). Run `npm run db:migrate` once on the shared database after merging.
 
 **Try it by hand.** Sign in as Avery (owner of Tuesday Crew) → Profile → Manage group → **Upload photo**. Then sign in as Maya: Messages and the Tuesday Crew chat header show it.
+
+## Onboarding and Sign Up
+
+A new person can't reach Find, Messages or Profile until they have a complete profile and a group (business rules 1 and 4):
+
+1. **Sign up** (name, city, email, password) creates the Supabase login and the `users` row.
+2. **Build your profile** (step 1 of 2): a photo, an interest, a short bio, age, gender, relationship status and a personality trait. A checklist ticks off as each one is done. Until then, creating or joining a group answers `403 PROFILE_INCOMPLETE`.
+3. **One more thing** (step 2 of 2): "You need to be in a friend group before you can use aura", with **Create a group** and **Join with code**. Every group-scoped endpoint answers `403 NO_GROUP` until then. Creating a group goes to an **Invite your friends** screen (code, link, add friends), then into the app.
+
+**Joining by code.** People can type the code or paste the whole invite link; spaces, dashes and lower case don't matter (`summit-77` works). Errors show under the field and are announced to screen readers:
+
+| What was entered | Message |
+|---|---|
+| Nothing | "Enter the invite code your friend sent you." |
+| Not 4-12 letters and numbers | "Invite codes are 4 to 12 letters and numbers, like SUMMIT77." (`400 INVALID_INVITE_CODE`) |
+| A code no group has | "No group has the invite code NOPE1234. Check it with your friend, or create your own group." (`404 INVITE_NOT_FOUND`) |
+| A full group's code | "That group already has 10 members, so no one else can join." (`409 GROUP_FULL`) |
+
+**Try it by hand.** Sign up with a new email, fill in the profile, then on "One more thing" choose **Join with code**: try `NOPE1234`, then `SPIKE010` (Wednesday Volleyball is full), then `SUMMIT77` to join Sunday Summit Club and land on Find.
+
+## Manage Group
+
+Profile → tap one of **My groups** opens **Manage group** (a sheet on phones, a dialog on desktop):
+
+- **Details:** group name (required, up to 60 characters) and city (required, up to 80; Find ranks same-city groups first). Each field shows a live count like "12/60", and a blank one says "Group name can't be empty." under the field before anything is sent. The server checks the same rules (`400 VALIDATION_ERROR`). **Save changes** saves both.
+- **Group photo:** the owner uploads, replaces or removes it (see [Group Photo](#group-photo)); it saves right away.
+- **Members · n of 10:** the owner can **Remove** anyone else (confirmed first); the sheet stays open and the count updates. Others see "Only the group's owner can remove members."
+- **Add members:** the invite code and link, plus **Add** next to each friend. At 10 of 10 it says "*Group* is full (10 of 10)…" and the Add buttons are disabled; the database's `group_member_cap` trigger still rejects an 11th member (`409 GROUP_FULL`) if two people add at once.
+- **Leave group:** confirmed first. If the owner leaves, the longest-standing member becomes the owner (the confirm says who), so someone can still manage the group. The last member leaving deletes the group.
+- **Long names** wrap instead of overflowing: group and member names, the sheet title and the full-group notice.
+
+**Try it by hand.** Sign in as Avery → Profile → Tuesday Crew: change the city and save, remove a member, add them back from **Add members**. Sign in as Chloe → Wednesday Volleyball shows the full notice.
 
 ## Decluttered Mobile Screens
 

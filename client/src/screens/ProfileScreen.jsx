@@ -143,8 +143,9 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
         <Sheet title="Manage group" onClose={close}>
           <ManageGroupForm
             group={sheet.group}
+            myId={user.id}
             onSaved={async () => { await refreshMe(); close(); toast('Group updated.'); }}
-            onPhotoChanged={refreshMe}
+            onChanged={refreshMe}
             onLeft={async () => { close(); await refreshMe(); toast(`You left ${sheet.group.name}.`); }}
           />
         </Sheet>
