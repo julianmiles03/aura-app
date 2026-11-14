@@ -1,9 +1,9 @@
 import express, { Router } from 'express';
-import crypto from 'node:crypto';
 import { pool, query, withTransaction } from '../db.js';
 import { badRequest, conflict, forbidden, notFound } from '../errors.js';
-import { randomPastel } from '../lib/format.js';
-import { assertMember, loadGroupCards, loadRelationshipStats } from '../lib/groups.js';
+import {
+  addMember, assertMember, createGroup, loadGroupCards, loadRelationshipStats, removeMembership,
+} from '../lib/groups.js';
 import { requireCompleteProfile } from '../lib/profile.js';
 import { PHOTO_MAX_BYTES, PHOTO_TYPES, removePhoto, savePhoto } from '../lib/storage.js';
 import { parseId, readText } from '../lib/validate.js';
@@ -20,21 +20,8 @@ router.post('/groups', async (req, res) => {
   await requireCompleteProfile(pool, req.user.id);
   const name = readText(req.body.name, 'Group name', { max: 60, required: true });
   const city = readText(req.body.city, 'City', { max: 80 }) ?? req.user.city;
-  const inviteCode = crypto.randomBytes(8).toString('hex').slice(0, 12).toUpperCase();
-
-  const groupId = await withTransaction(async (client) => {
-    const { rows: [group] } = await client.query(
-      `INSERT INTO friend_groups (name, city, invite_code, avatar_color, created_by)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [name, city, inviteCode, randomPastel(), req.user.id],
-    );
-    await client.query(
-      `INSERT INTO group_memberships (group_id, user_id, role) VALUES ($1, $2, 'owner')`,
-      [group.id, req.user.id],
-    );
-    await client.query('UPDATE users SET active_group_id = $2 WHERE id = $1', [req.user.id, group.id]);
-    return group.id;
-  });
+  // The creator is the owner and starts acting as the new group.
+  const groupId = await withTransaction((client) => createGroup(client, { name, city, ownerId: req.user.id, makeActive: true }));
   res.status(201).json({ group: await groupCard(groupId, { includeInviteCode: true }) });
 });
 
@@ -163,55 +150,14 @@ router.delete('/groups/:id/photo', async (req, res) => {
   res.json({ group: await groupCard(groupId, { includeInviteCode: true }) });
 });
 
-async function addMember(group, userId) {
-  await withTransaction(async (client) => {
-    const { rows } = await client.query(
-      `INSERT INTO group_memberships (group_id, user_id) VALUES ($1, $2)
-       ON CONFLICT (group_id, user_id) DO NOTHING RETURNING user_id`,
-      [group.id, userId],
-    );
-    if (!rows.length) throw conflict('ALREADY_MEMBER', `Already a member of ${group.name}.`);
-    // A match's chat holds both groups' members, so new members join the group's chats too
-    // (skipping any chat that's already at the 30-person cap).
-    await client.query(
-      `INSERT INTO chat_participants (chat_id, user_id, group_id)
-       SELECT c.id, $2, $1
-       FROM chats c JOIN group_matches mt ON mt.id = c.match_id
-       WHERE $1 IN (mt.group_low_id, mt.group_high_id)
-         AND (SELECT count(*) FROM chat_participants x WHERE x.chat_id = c.id) < 30
-       ON CONFLICT (chat_id, user_id) DO NOTHING`,
-      [group.id, userId],
-    );
-    // Someone with no group yet gets this one as their active group.
-    await client.query(
-      'UPDATE users SET active_group_id = $2 WHERE id = $1 AND active_group_id IS NULL',
-      [userId, group.id],
-    );
-  });
-}
-
 router.delete('/groups/:id/members/me', async (req, res) => {
   const groupId = parseId(req.params.id, 'group id');
   await assertMember(pool, groupId, req.user.id);
   await withTransaction(async (client) => {
-    // If this was the active group, the FK clears active_group_id; then fall back to another group.
-    await client.query('DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2', [groupId, req.user.id]);
-    await client.query('DELETE FROM chat_participants WHERE group_id = $1 AND user_id = $2', [groupId, req.user.id]);
-    await client.query(
-      `UPDATE users SET active_group_id = (
-         SELECT group_id FROM group_memberships WHERE user_id = $1 ORDER BY joined_at LIMIT 1)
-       WHERE id = $1 AND active_group_id IS NULL`,
-      [req.user.id],
-    );
-    // The owner left: the longest-standing member becomes the owner, so someone can still
-    // remove members and change the group photo.
-    await client.query(
-      `UPDATE group_memberships SET role = 'owner'
-       WHERE group_id = $1
-         AND NOT EXISTS (SELECT 1 FROM group_memberships WHERE group_id = $1 AND role = 'owner')
-         AND user_id = (SELECT user_id FROM group_memberships WHERE group_id = $1 ORDER BY joined_at, user_id LIMIT 1)`,
-      [groupId],
-    );
+    // Leaves the group's chats too, switches the active group if needed, and hands over
+    // ownership if the owner is the one leaving (lib/groups.js).
+    await removeMembership(client, groupId, req.user.id);
+    // The last member left: the empty group goes.
     await client.query(
       'DELETE FROM friend_groups g WHERE g.id = $1 AND NOT EXISTS (SELECT 1 FROM group_memberships WHERE group_id = g.id)',
       [groupId],
@@ -226,18 +172,9 @@ router.delete('/groups/:id/members/:userId', async (req, res) => {
   await assertOwner(pool, groupId, req.user.id);
   if (userId === req.user.id) throw conflict('OWNER_CANNOT_REMOVE_SELF', 'Use Leave group to leave your own group.');
   await withTransaction(async (client) => {
-    const { rowCount } = await client.query(
-      'DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2',
-      [groupId, userId],
-    );
-    if (!rowCount) throw notFound('MEMBER_NOT_FOUND', 'That person is not a member of this group.');
-    await client.query('DELETE FROM chat_participants WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
-    await client.query(
-      `UPDATE users SET active_group_id = (
-         SELECT group_id FROM group_memberships WHERE user_id = $1 ORDER BY joined_at LIMIT 1)
-       WHERE id = $1 AND active_group_id IS NULL`,
-      [userId],
-    );
+    if (!(await removeMembership(client, groupId, userId))) {
+      throw notFound('MEMBER_NOT_FOUND', 'That person is not a member of this group.');
+    }
   });
   res.json({ group: await groupCard(groupId, { includeInviteCode: true }) });
 });

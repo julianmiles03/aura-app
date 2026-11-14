@@ -15,10 +15,17 @@ import { supabase } from './supabase.js';
 
 // Hash routes: #/find, #/messages, #/messages/:chatId, #/profile.
 // Signed out: #/signup (what a new visitor sees) and #/signin?next=/messages/7 (back to where you were).
-// Admin portal, with its own sign-in: #/admin, #/admin/okrs, #/admin/records, #/admin/tables/:name.
+// Admin portal, with its own sign-in: #/admin, #/admin/okrs, #/admin/records, #/admin/tables/:name,
+// #/admin/groups and #/admin/groups/:id (Maintain Groups).
 function parseAdminRoute(path) {
   const [, , page, name] = path.split('/');
   if (page === 'okrs' || page === 'records') return { tab: 'admin', adminPage: page };
+  if (page === 'groups') {
+    const groupId = Number(name);
+    return Number.isSafeInteger(groupId) && groupId > 0
+      ? { tab: 'admin', adminPage: 'group', groupId }
+      : { tab: 'admin', adminPage: 'groups' };
+  }
   if (page === 'tables' && name) return { tab: 'admin', adminPage: 'table', tableName: decodeURIComponent(name) };
   return { tab: 'admin', adminPage: 'home' };
 }
@@ -173,7 +180,7 @@ export default function App() {
 
   // The admin portal works without an app account: admins sign in on its own landing page
   // (an httpOnly session cookie, not the Supabase session the rest of the app uses).
-  if (route.tab === 'admin') return <AdminPortal page={route.adminPage} tableName={route.tableName} />;
+  if (route.tab === 'admin') return <AdminPortal page={route.adminPage} tableName={route.tableName} groupId={route.groupId} />;
 
   let content;
   if (session === undefined) {

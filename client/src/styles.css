@@ -1176,6 +1176,79 @@ a.admin-tile:hover { border-color: var(--accent); }
 .admin-cell--null { color: var(--faint); font-style: italic; }
 .admin-table-skeleton { display: grid; gap: 14px; padding: 18px; }
 
+/* Maintain Groups (#/admin/groups, #/admin/groups/:id) */
+.admin-groups-head { flex-wrap: wrap; }
+.admin-search { max-width: 520px; }
+.admin-search input[type='search'], .admin-picker input[type='search'] { -webkit-appearance: none; appearance: none; }
+.admin-count { margin: -2px 0 12px; color: var(--muted); font-size: 15px; }
+.admin-group-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.admin-group-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 72px;
+  padding: 12px 12px 12px 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+  color: var(--ink);
+  text-decoration: none;
+}
+a.admin-group-row:hover { border-color: var(--accent); }
+.admin-group-row__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.admin-group-row__name { font-weight: 700; font-size: 17px; overflow-wrap: anywhere; }
+.admin-group-row__meta { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.admin-group-row__go { color: var(--muted); }
+/* "7 of 10" with a bar under it; the words alone carry the meaning. */
+.admin-meter { display: inline-grid; gap: 5px; flex: none; min-width: 64px; justify-items: end; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.admin-meter__text { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.admin-meter__full { padding: 1px 8px; border-radius: 999px; background: var(--warm-soft); color: var(--warm-ink); font-size: 12px; }
+.admin-meter__bar { display: block; width: 64px; height: 6px; border-radius: 3px; background: var(--chip-gray); overflow: hidden; }
+.admin-meter__bar > span { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.admin-meter--full .admin-meter__bar > span { background: var(--warm); }
+
+.admin-group-head { display: flex; align-items: center; gap: 14px; padding: 12px 0 16px; }
+.admin-group-head__text { display: grid; gap: 4px; min-width: 0; }
+.admin-group-head .page-title { font-size: 34px; overflow-wrap: anywhere; }
+.admin-group-head__meta { margin: 0; color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+.admin-group-head__meta code, .admin-card code { font-size: 13px; background: var(--chip-gray); padding: 1px 6px; border-radius: 6px; color: var(--ink); }
+.admin-group-grid { display: grid; gap: 14px; }
+.admin-card { margin: 0; }
+.admin-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.admin-card__title { font-size: 20px; font-weight: 700; margin: 0 0 12px; }
+.admin-card__head .admin-card__title { margin: 0; }
+.admin-card--danger { border: 1px solid #f2c9c6; }
+.admin-note { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+.admin-members { list-style: none; margin: 12px 0 0; padding: 0; }
+.admin-member { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.admin-member__text { display: grid; gap: 2px; flex: 1 1 160px; min-width: 0; }
+.admin-member__name { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-weight: 700; overflow-wrap: anywhere; }
+.admin-member__meta { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.admin-member__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.admin-member + .admin-note { margin-top: 4px; }
+.btn--danger-solid { background: var(--danger); color: #fff; }
+.btn--danger-solid:hover:not(:disabled) { background: #a92822; }
+
+/* Sheets: owner picker, add member, confirm */
+.admin-owner { margin: 0 0 16px; padding: 0; border: 0; min-width: 0; }
+.admin-owner__hint { margin: -2px 0 10px; color: var(--muted); font-size: 14px; }
+.admin-picker .field { margin-bottom: 10px; }
+.admin-picker__none { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+.admin-people { list-style: none; margin: 0; padding: 0; max-height: 46dvh; overflow-y: auto; }
+.admin-person { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.admin-people .admin-person:first-child { border-top: 0; }
+.admin-person--chosen { padding: 10px 12px; border: 1.5px solid var(--accent); border-radius: 16px; background: var(--accent-soft); }
+.admin-person__text { display: grid; flex: 1; min-width: 0; }
+.admin-person__name { font-weight: 700; overflow-wrap: anywhere; }
+.admin-person__meta { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.admin-person .btn, .admin-person .badge { flex: none; }
+.admin-sheet-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin: -6px 0 12px; }
+.admin-sheet-meta .admin-meter { justify-items: start; }
+.admin-sheet-meta__added { display: inline-flex; align-items: center; gap: 4px; margin: 0; color: var(--good); font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.admin-confirm__body p { margin: 0 0 18px; color: var(--muted); }
+.admin-confirm__actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.admin-confirm__actions .btn { min-width: 0; white-space: normal; }
+
 .admin-back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; margin-top: 6px; color: var(--accent-ink); font-weight: 700; text-decoration: none; }
 .okr-head { padding-top: 2px; flex-wrap: wrap; }
 .okr-refresh { min-width: 136px; }
@@ -1388,4 +1461,23 @@ a.admin-tile:hover { border-color: var(--accent); }
   .admin-table-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
   .admin-table-list--about { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-cell { max-width: 40ch; }
+
+  /* Four tools on the home page; four features on the landing page. */
+  .admin-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .admin-features { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+  /* Maintain Groups: two columns of groups; on a group, details and delete beside the members. */
+  .admin-group-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  .admin-group-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas: 'details members' 'danger members';
+    grid-template-rows: auto 1fr; /* row 2 soaks up the members' extra height, so Delete sits under Details */
+    align-items: start;
+    gap: 20px;
+  }
+  .admin-card--details { grid-area: details; }
+  .admin-card--members { grid-area: members; }
+  .admin-card--danger { grid-area: danger; }
+  .admin-card { padding: 24px; }
+  .admin-group-head .page-title { font-size: 44px; }
 }

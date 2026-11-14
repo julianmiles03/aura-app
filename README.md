@@ -31,7 +31,7 @@ From our Product Requirements Document.
 
 ## Vertical Slices
 
-Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 19.**
+Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 20.**
 
 | # | Slice | What the user does | API | Database |
 |---|---|---|---|---|
@@ -54,8 +54,9 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 17 | We met up! | In a match chat, **We met up!** under the header → **Yes, we met up**; both groups then see "You met up on Oct 30" | `POST /api/chats/:id/meetup`, `GET /api/chats/:id/messages` (`meetup`) | `meetups` (feeds KR4) |
 | 18 | OKR Dashboard | An admin signs in at **`#/admin`** → **OKR Dashboard**: KR1-KR4 against their targets, with the raw counts. **Refresh** reads them again | `GET /api/admin/okrs` (admin session only) | `okr_metrics` view |
 | 19 | Admin portal sign-in and Maintain | Open **`#/admin`**: a landing page with the **Admin sign in** form. Signing in shows **Maintain Users**, **Maintain Records** and a **Maintain** button for every table (view its rows); **Log out** hides them again | `POST /api/admin/login`, `GET /api/admin/session`, `GET /api/admin/tables`, `GET /api/admin/tables/:name`, `POST /api/admin/logout`; admin data routes answer `401` without the session cookie | `admin_users` (bcrypt hash), `admin_sessions` (hashed token), every app table (read only) |
+| 20 | Maintain Groups | Signed in to the admin portal: **Maintain Groups** → search the groups, **New group** (name, city, owner), open one to edit its name and city, **Add member** (up to 10; at 10 it's turned off), **Make owner**, **Remove**, **Delete group** | `GET`/`POST /api/admin/groups`, `GET`/`PATCH`/`DELETE /api/admin/groups/:id`, `POST /api/admin/groups/:id/members`, `PATCH`/`DELETE /api/admin/groups/:id/members/:userId`, `GET /api/admin/users`; an 11th member gets `409 GROUP_FULL` | `friend_groups`, `group_memberships` (`group_member_cap` trigger), `chat_participants`, `users.active_group_id` |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), and slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), and slice 20 in [Maintain Groups](#maintain-groups).
 
 ### Sprint 2 JW verification
 
@@ -67,7 +68,7 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 
 - **Customer app:** users use the React website, which sends requests to our Express server. The server saves and loads data in Supabase, which also handles logins. Both run live on Render.
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
-- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Users and Maintain Records show each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
+- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Groups creates, edits and deletes friend groups and their members (see [Maintain Groups](#maintain-groups)), Maintain Users and Maintain Records show each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
 
 ## Data Flow Diagrams
 
@@ -302,7 +303,8 @@ The admin portal ([`/#/admin`](https://aura-is401.onrender.com/#/admin)) has its
 
 | Page | Signed out | Signed in |
 |---|---|---|
-| `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
+| `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Groups**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
+| `#/admin/groups`, `#/admin/groups/<id>` | Landing page and form | [Maintain Groups](#maintain-groups): every group, or one group to edit |
 | `#/admin/records` | Landing page and form; after signing in you're on this page | Every table except users, each with its own **Maintain** button |
 | `#/admin/tables/<name>` | Landing page and form | That table's row count and newest 50 rows, view only (`users` is Maintain Users) |
 | `#/admin/okrs` | Landing page and form | The [OKR Dashboard](#okr-dashboard) |
@@ -339,7 +341,40 @@ It saves the bcrypt hash, never the password. Running it again for the same emai
 
 **Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set for an admin account, `npm run verify:admin` runs 27 checks against the API and the database: every admin data route is `401` without a session or with a made-up cookie, a wrong password sets no cookie, the lockout, the cookie's `HttpOnly` / `SameSite=Strict` / `Path`, only hashes in the database, the signed-in routes, and that logging out deletes the session so the old cookie stops working. It signs in once and logs out, which adds and then removes one `admin_sessions` row, so it's fine on the shared database.
 
-**Phone and desktop.** On phones everything is one column, with the sign-in form right under the intro. From 1024px wide the intro and the form sit side by side, the tools are three across and the tables are a grid. Lighthouse Accessibility is 100 on phone and desktop for the landing page, the signed-in home, Maintain Records, a table page and the OKR Dashboard.
+**Phone and desktop.** On phones everything is one column, with the sign-in form right under the intro. From 1024px wide the intro and the form sit side by side, the four tools are in one row and the tables are a grid. Lighthouse Accessibility is 100 on phone and desktop for the landing page, the signed-in home, Maintain Records, a table page and the OKR Dashboard.
+
+## Maintain Groups
+
+In the admin portal, **Maintain Groups** (`#/admin/groups`) creates, shows, edits and deletes friend groups and their memberships. Its button, like every admin tool, only appears after signing in to the portal, and its API routes answer `401 ADMIN_SIGNED_OUT` without an admin session.
+
+| Page | What an admin can do |
+|---|---|
+| `#/admin/groups` | See every group A to Z with its city, owner and "7 of 10" (a **Full** tag at 10). **Search** by name, city or owner. **New group**: name, city and the owner, found by searching people by name. The owner is the group's first member. |
+| `#/admin/groups/<id>` | **Details**: change the name and city. **Members**: each person with their city, when they joined, **Owner** and "Acting as this group" tags; **Add member** (search, then **Add**; the sheet stays open to add several people), **Make owner**, **Remove**. **Delete group**: says exactly what goes with it (memberships, matches and their chats and messages, Connects and Passes) and asks first. |
+
+**The rules it keeps** (all on the server, in [`server/src/routes/adminGroups.js`](server/src/routes/adminGroups.js) and [`server/src/lib/groups.js`](server/src/lib/groups.js)):
+- **At most 10 members.** The database trigger `group_member_cap` refuses an 11th, so an admin gets `409 GROUP_FULL` even if two admins add someone at the same moment. The page shows "10 of 10", turns **Add member** off and says why.
+- **One owner, never empty.** A new group starts with its owner. **Make owner** makes the old owner a regular member. Removing the owner hands it to the longest-standing member (the confirm sheet says who). The last member can't be removed (`409 LAST_MEMBER`): delete the group instead.
+- **The same as in the app.** Adding and removing go through the same helpers the app uses (`createGroup`, `addMember`, `removeMembership`, `setOwner` in `lib/groups.js`). A new member joins the group's match chats, someone removed leaves them, and anyone whose active group goes away switches to their oldest other group. Creating a group or adding someone never changes the group a person is acting as, unless they had none.
+- **Deleting** a group removes everything that belongs to it through the database's `ON DELETE CASCADE`: memberships, likes sent and received, matches, and those matches' chats with their messages. Its group photo is deleted from storage too.
+
+| Route (admin session required) | What it does |
+|---|---|
+| `GET /api/admin/groups` | Every group with `memberCount`, `maxMembers`, `isFull`, `matchCount` and `owner` |
+| `POST /api/admin/groups` | `{ name, city, ownerUserId }` → `201 { group }`; `400 VALIDATION_ERROR`, `404 USER_NOT_FOUND` |
+| `GET /api/admin/groups/:id` | The group with its `members` (role, joined, `isActiveGroup`) and the counts shown before deleting; `404 GROUP_NOT_FOUND` |
+| `PATCH /api/admin/groups/:id` | `{ name?, city? }`; neither can be blank |
+| `DELETE /api/admin/groups/:id` | `204`, everything above deleted with it |
+| `POST /api/admin/groups/:id/members` | `{ userId }` → `201 { group }`; `409 GROUP_FULL`, `409 ALREADY_MEMBER`, `404 USER_NOT_FOUND` |
+| `PATCH /api/admin/groups/:id/members/:userId` | `{ role: "owner" }`: makes them the owner |
+| `DELETE /api/admin/groups/:id/members/:userId` | Removes them; `409 LAST_MEMBER`, `404 MEMBER_NOT_FOUND` |
+| `GET /api/admin/users?q=&groupId=` | Up to 20 people whose name contains `q`, each with `groupCount` and `inGroup` (for the people search) |
+
+The **Maintain** pages for the `friend_groups` and `group_memberships` tables link here too.
+
+**Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set, `npm run verify:admin-groups` runs 32 checks against the API and the database: `401` without a session (and nothing created), create's validation, adding up to 10 then `409 GROUP_FULL` for the 11th with still 10 rows in the database, `409 ALREADY_MEMBER`, edit and its validation, **Make owner** leaving exactly one owner, ownership passing on when the owner is removed, `409 LAST_MEMBER`, and delete removing the group and its memberships with everyone's active group as it was. It creates two test groups and adds 11 existing users who already have an active group to one of them for a few seconds, then deletes both. Others can see the test groups in Find meanwhile, so ask the team before running it on the shared database.
+
+**Phone and desktop.** Phones get one column, and sheets slide up from the bottom. From 1024px wide the groups list is two across, a group's details and delete sit beside its members, and the sheets are centered dialogs. Lighthouse Accessibility is 100 on phone and desktop for the list, a group, a full group, and the New group, Add member and Remove sheets while open.
 
 ## How We Merge
 
