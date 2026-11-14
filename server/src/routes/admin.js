@@ -6,6 +6,7 @@ import { Router } from 'express';
 import { pool, query } from '../db.js';
 import { notFound } from '../errors.js';
 import { currentAdmin, logIn, logOut, requireAdminSession } from '../lib/adminAuth.js';
+import adminGroupsRouter from './adminGroups.js';
 
 const router = Router();
 
@@ -36,6 +37,9 @@ router.get('/admin/session', async (req, res) => {
 // Everything below needs a valid admin session (401 ADMIN_SIGNED_OUT otherwise)
 // ---------------------------------------------------------------------------
 router.use('/admin', requireAdminSession);
+
+// Maintain Groups: create, view, edit and delete groups and their members (routes/adminGroups.js).
+router.use(adminGroupsRouter);
 
 // Team Aura's goal for each Key Result, as a percentage (README "OKR Metrics"). These are the
 // targets the dashboard compares against; the KR values themselves always come from the database.

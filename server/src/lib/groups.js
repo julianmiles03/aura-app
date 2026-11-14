@@ -1,6 +1,10 @@
-import { forbidden, notFound } from '../errors.js';
-import { groupInitials, MAIN_PHOTO_SQL, userInitials } from './format.js';
+import crypto from 'node:crypto';
+import { withTransaction } from '../db.js';
+import { conflict, forbidden, notFound } from '../errors.js';
+import { groupInitials, MAIN_PHOTO_SQL, randomPastel, userInitials } from './format.js';
 
+// The most people a Friend Group can have. The database enforces it (trigger group_member_cap,
+// which the API turns into 409 GROUP_FULL); this copy is for the numbers the API returns.
 export const MAX_MEMBERS = 10;
 
 export async function assertMember(db, groupId, userId) {
@@ -132,4 +136,106 @@ export async function loadRelationshipStats(db, viewerGroupId, candidateIds) {
     distanceMiles: r.distance_miles,
     likesYou: r.likes_you,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Changing who's in a group. The app (routes/groups.js) and the admin portal's Maintain Groups
+// (routes/adminGroups.js) both go through these, so a group follows the same rules either way:
+// at most 10 members, one owner, members sit in the group's match chats, and everyone in a group
+// has an active group.
+// ---------------------------------------------------------------------------
+
+// Creates a group with its owner as the first member, inside the caller's transaction, and returns
+// its id. In the app the creator starts acting as the new group (makeActive: true); when an admin
+// creates a group for someone, it only becomes their active group if they had none.
+export async function createGroup(client, { name, city, ownerId, makeActive }) {
+  const inviteCode = crypto.randomBytes(8).toString('hex').slice(0, 12).toUpperCase();
+  const { rows: [group] } = await client.query(
+    `INSERT INTO friend_groups (name, city, invite_code, avatar_color, created_by)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+    [name, city, inviteCode, randomPastel(), ownerId],
+  );
+  await client.query(
+    `INSERT INTO group_memberships (group_id, user_id, role) VALUES ($1, $2, 'owner')`,
+    [group.id, ownerId],
+  );
+  await client.query(
+    `UPDATE users SET active_group_id = $2 WHERE id = $1${makeActive ? '' : ' AND active_group_id IS NULL'}`,
+    [ownerId, group.id],
+  );
+  return group.id;
+}
+
+// Adds someone to a group (its own transaction). An 11th member is stopped by the database
+// trigger (409 GROUP_FULL); someone already in the group gets 409 ALREADY_MEMBER.
+export async function addMember(group, userId) {
+  await withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `INSERT INTO group_memberships (group_id, user_id) VALUES ($1, $2)
+       ON CONFLICT (group_id, user_id) DO NOTHING RETURNING user_id`,
+      [group.id, userId],
+    );
+    if (!rows.length) throw conflict('ALREADY_MEMBER', `Already a member of ${group.name}.`);
+    // A match's chat holds both groups' members, so new members join the group's chats too
+    // (skipping any chat that's already at the 30-person cap).
+    await client.query(
+      `INSERT INTO chat_participants (chat_id, user_id, group_id)
+       SELECT c.id, $2, $1
+       FROM chats c JOIN group_matches mt ON mt.id = c.match_id
+       WHERE $1 IN (mt.group_low_id, mt.group_high_id)
+         AND (SELECT count(*) FROM chat_participants x WHERE x.chat_id = c.id) < 30
+       ON CONFLICT (chat_id, user_id) DO NOTHING`,
+      [group.id, userId],
+    );
+    // Someone with no group yet gets this one as their active group.
+    await client.query(
+      'UPDATE users SET active_group_id = $2 WHERE id = $1 AND active_group_id IS NULL',
+      [userId, group.id],
+    );
+  });
+}
+
+// Takes someone out of a group, inside the caller's transaction: their membership, their place in
+// the group's match chats, and, if this was their active group, a switch to their oldest other
+// group. If they were the owner, the longest-standing member becomes the owner, so someone can
+// still manage the group. Returns false if they weren't a member. A group left with nobody in it
+// is the caller's to delete (the app does; Maintain Groups doesn't let the last member go).
+export async function removeMembership(client, groupId, userId) {
+  const { rowCount } = await client.query(
+    'DELETE FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+    [groupId, userId],
+  );
+  if (!rowCount) return false;
+  await client.query('DELETE FROM chat_participants WHERE group_id = $1 AND user_id = $2', [groupId, userId]);
+  // If this was their active group, the composite FK has just cleared active_group_id.
+  await client.query(
+    `UPDATE users SET active_group_id = (
+       SELECT group_id FROM group_memberships WHERE user_id = $1 ORDER BY joined_at LIMIT 1)
+     WHERE id = $1 AND active_group_id IS NULL`,
+    [userId],
+  );
+  await client.query(
+    `UPDATE group_memberships SET role = 'owner'
+     WHERE group_id = $1
+       AND NOT EXISTS (SELECT 1 FROM group_memberships WHERE group_id = $1 AND role = 'owner')
+       AND user_id = (SELECT user_id FROM group_memberships WHERE group_id = $1 ORDER BY joined_at, user_id LIMIT 1)`,
+    [groupId],
+  );
+  return true;
+}
+
+// Makes one member the owner, inside the caller's transaction. A group has one owner, so the
+// previous owner stays on as a regular member. One UPDATE changes both rows at once.
+export async function setOwner(client, groupId, userId) {
+  const { rows: [membership] } = await client.query(
+    'SELECT role FROM group_memberships WHERE group_id = $1 AND user_id = $2',
+    [groupId, userId],
+  );
+  if (!membership) throw notFound('MEMBER_NOT_FOUND', 'That person is not a member of this group.');
+  await client.query(
+    `UPDATE group_memberships
+     SET role = CASE WHEN user_id = $2 THEN 'owner'::group_role ELSE 'member'::group_role END
+     WHERE group_id = $1 AND (user_id = $2 OR role = 'owner')`,
+    [groupId, userId],
+  );
 }
