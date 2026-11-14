@@ -39,7 +39,7 @@ Table users {
   avatar_color     char(7) [not null, default: '#FDDCCB', note: 'pastel hex behind initials']
   active_group_id  bigint [note: 'composite FK (id, active_group_id) -> group_memberships, so it must be a group the user belongs to']
   auth_user_id     uuid [unique, note: 'Supabase Auth account that signs in as this user (auth.users.id, ON DELETE SET NULL); NULL = no login']
-  is_admin         boolean [not null, default: false, note: 'may read the OKR dashboard (GET /api/admin/okrs)']
+  is_admin         boolean [not null, default: false, note: 'the app shows this person an Admin portal link; portal sign-in uses admin_users']
   created_at       timestamptz [not null, default: `now()`]
 }
 
@@ -198,6 +198,28 @@ Table meetups {
   }
 }
 
+// ---------- Admin portal (its own sign-in, separate from Supabase Auth) ----------
+
+Table admin_users {
+  id             bigint [pk, increment]
+  user_email     varchar(254) [not null, unique, note: 'stored trimmed and lowercase']
+  user_password  text [not null, note: 'bcrypt hash, never the password (npm run db:admin-account)']
+  created_at     timestamptz [not null, default: `now()`]
+  last_login_at  timestamptz
+}
+
+Table admin_sessions {
+  id             bigint [pk, increment]
+  admin_user_id  bigint [not null]
+  token_hash     char(64) [not null, unique, note: 'SHA-256 of the token in the httpOnly cookie aura_admin']
+  created_at     timestamptz [not null, default: `now()`]
+  expires_at     timestamptz [not null, note: '8 hours after sign-in; log out deletes the row']
+
+  indexes {
+    admin_user_id
+  }
+}
+
 // ---------- Relationships ----------
 
 // 1:N  a user has 0..3 photos
@@ -249,3 +271,6 @@ Ref: chat_suggestions.chat_id > chats.id [delete: cascade]
 // 1:N  a match has 0..N confirmed meetups; a user confirms many meetups
 Ref: meetups.match_id > group_matches.id [delete: cascade]
 Ref: meetups.confirmed_by_user_id > users.id [delete: set null]
+
+// 1:N  an admin can be signed in on several browsers at once
+Ref: admin_sessions.admin_user_id > admin_users.id [delete: cascade]

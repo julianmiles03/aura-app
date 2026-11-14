@@ -13,8 +13,16 @@ import ProfileScreen from './screens/ProfileScreen.jsx';
 import { APP_PATH, authHref } from './routes.js';
 import { supabase } from './supabase.js';
 
-// Hash routes: #/find, #/messages, #/messages/:chatId, #/profile, and for admins #/admin, #/admin/okrs.
+// Hash routes: #/find, #/messages, #/messages/:chatId, #/profile.
 // Signed out: #/signup (what a new visitor sees) and #/signin?next=/messages/7 (back to where you were).
+// Admin portal, with its own sign-in: #/admin, #/admin/okrs, #/admin/records, #/admin/tables/:name.
+function parseAdminRoute(path) {
+  const [, , page, name] = path.split('/');
+  if (page === 'okrs' || page === 'records') return { tab: 'admin', adminPage: page };
+  if (page === 'tables' && name) return { tab: 'admin', adminPage: 'table', tableName: decodeURIComponent(name) };
+  return { tab: 'admin', adminPage: 'home' };
+}
+
 function parseRoute() {
   const [path, query = ''] = window.location.hash.slice(1).split('?');
   const fullPath = query ? `${path}?${query}` : path;
@@ -26,7 +34,7 @@ function parseRoute() {
     return { tab, auth: true, next: APP_PATH.test(next ?? '') ? next : null };
   }
   if (tab === 'messages' && id) return { tab: 'messages', chatId: Number(id), path, explicit };
-  if (tab === 'admin') return { tab, adminPage: id === 'okrs' ? 'okrs' : 'home', path: id === 'okrs' ? '/admin/okrs' : '/admin', explicit };
+  if (tab === 'admin') return parseAdminRoute(path);
   const known = ['find', 'messages', 'profile', 'join'].includes(tab);
   return { tab: known ? tab : 'find', path: known ? fullPath : '/find', inviteCode: tab === 'join' ? new URLSearchParams(query).get('code') ?? '' : '', explicit };
 }
@@ -132,8 +140,9 @@ export default function App() {
   }, [authUserId, refreshMe]);
 
   // Signed out on an app page: go to Sign in, remembering the page (replace, so Back doesn't bounce).
+  // The admin portal isn't an app page: it has its own sign-in form.
   useEffect(() => {
-    if (session !== null || route.auth || !route.explicit) return;
+    if (session !== null || route.auth || !route.explicit || route.tab === 'admin') return;
     const next = loggingOut.current ? null : route.path;
     loggingOut.current = false;
     window.location.replace(authHref('signin', next));
@@ -162,6 +171,10 @@ export default function App() {
     }
   }, [refreshMe, toast]);
 
+  // The admin portal works without an app account: admins sign in on its own landing page
+  // (an httpOnly session cookie, not the Supabase session the rest of the app uses).
+  if (route.tab === 'admin') return <AdminPortal page={route.adminPage} tableName={route.tableName} />;
+
   let content;
   if (session === undefined) {
     content = <Loader label="Loading…" />;
@@ -184,9 +197,6 @@ export default function App() {
     ) : (
       <Loader label="Loading…" />
     );
-  } else if (route.tab === 'admin') {
-    // The admin portal doesn't need a finished profile or a group; it does need users.is_admin.
-    return <AdminPortal page={route.adminPage} me={me} email={session.user.email} onSignOut={signOut} />;
   } else if (!me.onboarding.profileComplete) {
     content = <ProfileSetup me={me} setMe={setMe} refreshMe={refreshMe} />;
   } else if (route.tab === 'join') {

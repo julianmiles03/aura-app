@@ -17,6 +17,9 @@ const FRIENDLY = {
   SESSION_EXPIRED: 'You were signed out. Sign in again to keep going.',
   UPLOADS_NOT_SET_UP: "Photo uploads aren't available right now. Try again later.",
   UPLOAD_FAILED: "We couldn't save your photo. Try again.",
+  // Admin portal (adminApi.js). ADMIN_LOGIN_FAILED and TOO_MANY_ATTEMPTS use the server's own text.
+  ADMIN_SIGNED_OUT: 'Your admin session ended. Sign in again to keep going.',
+  BAD_RESPONSE: "The admin portal can't reach the aura server from this site. Try again in a minute.",
 };
 
 export function friendlyError(err) {

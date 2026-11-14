@@ -31,7 +31,7 @@ From our Product Requirements Document.
 
 ## Vertical Slices
 
-Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 16.**
+Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 19.**
 
 | # | Slice | What the user does | API | Database |
 |---|---|---|---|---|
@@ -52,9 +52,10 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 15 | Typing indicator | Type in a chat: the other members see "Avery is typing…" within a few seconds, gone about 5 seconds after you stop | `POST`/`DELETE /api/chats/:id/typing`, `GET /api/chats/:id/messages` (`typing`) | `chat_participants.typing_at` |
 | 16 | AI conversation starters | Open a new match's chat: three "Need an opener?" chips. Tap one to fill the message box, then send it | On a match the server asks the Gemini API for 3 starters; `GET /api/chats/:id/messages` (`suggestions`), `POST /api/chats/:id/messages` (`suggestionId`) | `chat_suggestions` (`text`, `used_at`) |
 | 17 | We met up! | In a match chat, **We met up!** under the header → **Yes, we met up**; both groups then see "You met up on Oct 30" | `POST /api/chats/:id/meetup`, `GET /api/chats/:id/messages` (`meetup`) | `meetups` (feeds KR4) |
-| 18 | OKR Dashboard | An admin opens **Admin portal** (on Profile, or in the desktop sidebar) → **OKR Dashboard**: KR1-KR4 against their targets, with the raw counts. **Refresh** reads them again | `GET /api/admin/okrs` (admins only) | `okr_metrics` view, `users.is_admin` |
+| 18 | OKR Dashboard | An admin signs in at **`#/admin`** → **OKR Dashboard**: KR1-KR4 against their targets, with the raw counts. **Refresh** reads them again | `GET /api/admin/okrs` (admin session only) | `okr_metrics` view |
+| 19 | Admin portal sign-in and Maintain | Open **`#/admin`**: a landing page with the **Admin sign in** form. Signing in shows **Maintain Users**, **Maintain Records** and a **Maintain** button for every table (view its rows); **Log out** hides them again | `POST /api/admin/login`, `GET /api/admin/session`, `GET /api/admin/tables`, `GET /api/admin/tables/:name`, `POST /api/admin/logout`; admin data routes answer `401` without the session cookie | `admin_users` (bcrypt hash), `admin_sessions` (hashed token), every app table (read only) |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), and slice 18 in [OKR Dashboard](#okr-dashboard).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), and slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in).
 
 ### Sprint 2 JW verification
 
@@ -66,7 +67,7 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 
 - **Customer app:** users use the React website, which sends requests to our Express server. The server saves and loads data in Supabase, which also handles logins. Both run live on Render.
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
-- **Admin portal:** part of the same React website (`#/admin`), behind the normal sign-in plus `users.is_admin`. Its OKR Dashboard reads `GET /api/admin/okrs` from our Express server, which counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). Maintain Users and Maintain Records aren't built yet. The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
+- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Users and Maintain Records show each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
 
 ## Data Flow Diagrams
 
@@ -132,7 +133,7 @@ All four Key Results are computed automatically by the `okr_metrics` view (in [`
 
 This is where we track KR1-KR4, and what we show in the KR video and the live demo. It's in the admin portal, inside the app.
 
-- **Opening it:** sign in with an admin account (see [below](#admin-dashboard-api) for how to make one), then go to **Profile → Admin portal → OKR Dashboard**. On desktop, **Admin portal** is also in the sidebar. The direct links are [`/#/admin`](https://aura-is401.onrender.com/#/admin) and [`/#/admin/okrs`](https://aura-is401.onrender.com/#/admin/okrs); if you're signed out, they go through Sign in and then open the page. Other users don't get the link, and if they open the URL they see "Admins only" (the API answers them with `403 NOT_ADMIN`). The portal's other two tools, **Maintain Users** and **Maintain Records**, are marked "Coming soon".
+- **Opening it:** go to [`/#/admin`](https://aura-is401.onrender.com/#/admin), sign in with an admin account ([how to make one](#admin-portal-sign-in)) and choose **OKR Dashboard**, or open [`/#/admin/okrs`](https://aura-is401.onrender.com/#/admin/okrs) and sign in there. App users with `users.is_admin` also have an **Admin portal** shortcut on Profile (and in the desktop sidebar), which leads to the same sign-in. Without an admin session the API gives the dashboard no data (`401 ADMIN_SIGNED_OUT`).
 - **What each KR card shows:** the current percentage next to the target, **On track** or **Below target**, the raw counts (for example "6 of 10 groups"), how far it is from the target ("2 more groups to reach the target" or "10 points above target"), and the action and table that move it. KR3 and KR4 show "No data yet" until some group has matched.
 - **When it updates:** the numbers load when the page opens, and **Refresh** reads them again. The line under the title shows when they were read. There are no manual numbers: every value is counted from real activity by `okr_metrics`. The only fixed numbers are the targets.
 - **Targets:** set in `TARGETS` in [`server/src/routes/admin.js`](server/src/routes/admin.js). Change them there.
@@ -145,11 +146,11 @@ This is where we track KR1-KR4, and what we show in the KR video and the live de
   | KR4: connected groups that meet up | 25% |
 
 - **Demoing it:** open the dashboard in one window and the app, signed in as a different demo account, in another. Do one of the actions in [Which table or event drives each KR](#which-table-or-event-drives-each-kr), then click **Refresh** on the dashboard to show the number change.
-- **Phone and desktop:** phones get one column. From 1024px wide, the three tools sit side by side and the KR cards are two by two. Lighthouse Accessibility scores 100 on phone and desktop for the portal home, the dashboard (loaded and loading) and the "Admins only" page.
+- **Phone and desktop:** phones get one column. From 1024px wide, the three tools sit side by side and the KR cards are two by two. Lighthouse Accessibility scores 100 on phone and desktop for the dashboard and the rest of the portal (see [Admin Portal Sign-In](#admin-portal-sign-in)).
 
 ### Admin dashboard API
 
-The [OKR Dashboard](#okr-dashboard) shows the KRs from `GET /api/admin/okrs`. It needs a signed-in user (`Authorization: Bearer`, like every other route) whose `users.is_admin` is `true`; anyone else gets `403 NOT_ADMIN`. `GET /api/me` includes `user.isAdmin`, so the app can tell whether to offer the portal. The numbers are read live from `okr_metrics` on every request (no caching), so refreshing the dashboard after a user action shows the new value. The dashboard is part of the aura website, so the API already allows it. If another site ever calls the API from a browser, add that site's domain to `CORS_ORIGIN` on aura-is401-api (comma-separated), or the browser blocks the request.
+The [OKR Dashboard](#okr-dashboard) shows the KRs from `GET /api/admin/okrs`. Like every admin data route, it needs an admin session: the `aura_admin` cookie from [Admin Portal Sign-In](#admin-portal-sign-in). Without one it answers `401 ADMIN_SIGNED_OUT`. The numbers are read live from `okr_metrics` on every request (no caching), so refreshing the dashboard after a user action shows the new value. The portal calls it at `/api/admin/okrs` on the website's own address, which Render forwards to the API.
 
 ```json
 {
@@ -165,7 +166,7 @@ The [OKR Dashboard](#okr-dashboard) shows the KRs from `GET /api/admin/okrs`. It
 }
 ```
 
-`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. `target` is our goal for that KR, as a percentage. To make someone an admin, run this in Supabase's **SQL Editor** (`users.id` is in the Table Editor):
+`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. `target` is our goal for that KR, as a percentage. To give someone admin access, make them an admin account with `npm run db:admin-account` ([Admin Portal Sign-In](#admin-portal-sign-in)). `users.is_admin` only gives an app user the **Admin portal** shortcut in the app (`GET /api/me` returns it as `user.isAdmin`); set it in Supabase's **SQL Editor** (`users.id` is in the Table Editor):
 
 ```sql
 UPDATE users SET is_admin = true WHERE id = <their users.id>;
@@ -173,7 +174,7 @@ UPDATE users SET is_admin = true WHERE id = <their users.id>;
 
 Notes:
 - A percentage is empty (`NULL`) instead of an error when its denominator is 0, for example KR3 and KR4 before any group has matched.
-- **Updating an existing database:** schema changes that must keep everyone's other data go in `db/migrations/` as files that are safe to re-run. `npm run db:migrate` runs them all and prints the current KRs. `db/schema.sql` matches the result, so a fresh `npm run db:reset` ends up the same. `001_okr_metrics.sql` adds the OKR table and view; `002_drop_events.sql` removes the events feature (its two tables and their rows); `008_admin.sql` adds `users.is_admin`. All are applied to Find Friends App.
+- **Updating an existing database:** schema changes that must keep everyone's other data go in `db/migrations/` as files that are safe to re-run. `npm run db:migrate` runs them all and prints the current KRs. `db/schema.sql` matches the result, so a fresh `npm run db:reset` ends up the same. `001_okr_metrics.sql` adds the OKR table and view; `002_drop_events.sql` removes the events feature (its two tables and their rows); `008_admin.sql` adds `users.is_admin`; `009_admin_login.sql` adds `admin_users` and `admin_sessions` for the admin portal's sign-in. All are applied to Find Friends App.
 
 ## Tech Stack
 
@@ -182,7 +183,7 @@ Notes:
 | Frontend | **React + Vite**, plain CSS (`/client`) | The most widely used UI library, so everyone on the team can contribute. Vite starts in under a second and reloads on save. Plain CSS with design tokens (no UI framework) keeps the mockups' look exact without another thing to learn. |
 | Backend | **Node + Express** REST API (`/server`) | The same language as the frontend, so nobody has to switch languages. Express is small enough to read end to end, and each screen maps to a few clear endpoints that return JSON errors like `409 GROUP_FULL`. |
 | Database | **PostgreSQL on Supabase**, accessed with `pg` | The free tier covers everything we need at this stage. Supabase's **Table Editor** lets the whole team see rows appear as we click through the app. All four of us point at **one shared database** (the Supabase project Find Friends App), so nobody's local setup drifts and seed data is the same for everyone. We use Supabase only as a Postgres host with plain SQL, so the work stays portable and shows real relational design (constraints, triggers, views). |
-| Auth | **Supabase Auth** (email + password) | Supabase already hosts our database, so its Auth service adds real accounts without another vendor. The client uses only the small `@supabase/auth-js` package; the API checks each session token against Supabase's published signing keys (`jose`), so it needs no shared secret, and all app data still goes through our API. |
+| Auth | **Supabase Auth** (email + password); the admin portal: **bcrypt** + an httpOnly session cookie | Supabase already hosts our database, so its Auth service adds real accounts without another vendor. The client uses only the small `@supabase/auth-js` package; the API checks each session token against Supabase's published signing keys (`jose`), so it needs no shared secret, and all app data still goes through our API. The admin portal's few staff accounts sign in separately: passwords hashed with `bcryptjs` (pure JavaScript, nothing to compile on Render) and a session row per browser, so log out really ends the session. |
 | AI | **Google Gemini API** (`gemini-3.5-flash-lite`), called from the server with `fetch` | One small, fast model call per match is all we need, and Gemini has a free tier. It returns structured JSON that the server checks before saving, and plain `fetch` means no SDK to install or keep up to date. The key stays on the server. |
 | Tooling | npm workspaces, `concurrently` | `npm install` installs everything once. `npm run dev` starts both servers, and `npm run db:reset` rebuilds the database from the SQL files. |
 
@@ -215,6 +216,8 @@ These steps assume a fresh clone and no prior knowledge of the project. The whol
    ```
    Open `server/.env` and replace the whole `DATABASE_URL=...` line with `DATABASE_URL=<the string from steps 3–4>`. Set `SUPABASE_URL=https://rcyafwgjnnlgnakwkksi.supabase.co`, and copy `SUPABASE_PUBLISHABLE_KEY` from `client/.env.development` (it's public). Get `DEMO_PASSWORD` from Julian by DM; only the demo and `verify:*` scripts use it. `server/.env` is git-ignored, so your passwords never get committed.
 
+   Optional: to use the [admin portal](#admin-portal-sign-in), add `ADMIN_EMAIL` and `ADMIN_PASSWORD` (your own, 12+ characters) and run `npm run db:admin-account` once.
+
    Optional: to see the [AI conversation starters](#ai-conversation-starters) locally, also add `GEMINI_API_KEY=<the team's Gemini key>`. Without it everything else works; new chats just have no suggested openers.
 
 6. **Check the connection.**
@@ -244,7 +247,7 @@ The tables and sample data already exist in Find Friends App. `npm run db:reset`
 The live app runs on [Render](https://render.com), set up from [`render.yaml`](render.yaml) (a Render Blueprint) in Julian's Render account:
 
 - **`aura-is401-api`** (web service): the Express API. `DATABASE_URL` is set in Render's Environment tab, never in the repo. So is `GEMINI_API_KEY`, the key for the [AI conversation starters](#ai-conversation-starters); without it the app runs normally, with no suggested openers. `CORS_ORIGIN` allows only the client's URL to call the API from a browser.
-- **`aura-is401`** (static site): the Vite build of the client. `VITE_API_URL` tells it where the API lives, and `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` point it at Supabase Auth; all are baked in at build time and are public.
+- **`aura-is401`** (static site): the Vite build of the client. `VITE_API_URL` tells it where the API lives, and `VITE_SUPABASE_URL` / `VITE_SUPABASE_PUBLISHABLE_KEY` point it at Supabase Auth; all are baked in at build time and are public. Its rewrite rule forwards `/api/*` on the client's address to the API, which the admin portal uses so its session cookie belongs to the client's site ([why](#admin-portal-sign-in)). If it's missing under **aura-is401 → Redirects/Rewrites**, add it: Source `/api/*`, Destination `https://aura-is401-api.onrender.com/api/*`, Action **Rewrite**.
 - The API's `SUPABASE_URL` (also public) is where it fetches Supabase's signing keys to check sessions.
 
 Every push or merge to `main` redeploys both automatically (about a minute); nothing to click. To set it up from scratch: Render Dashboard → **New → Blueprint** → pick this repo → paste the Session pooler URI as `DATABASE_URL` and the Gemini key as `GEMINI_API_KEY` → **Apply**. If Render gives either service a different URL (it adds a suffix when a name is taken), update `CORS_ORIGIN` and `VITE_API_URL` to match.
@@ -253,7 +256,7 @@ Render only asks for secret values like these when a Blueprint is first created.
 
 ## Sign In and Demo Accounts
 
-Accounts are **Supabase Auth** users (email + password). New visitors see **Sign up**; "Already have an account? Sign in" goes to the separate sign-in page.
+Accounts are **Supabase Auth** users (email + password). New visitors see **Sign up**; "Already have an account? Sign in" goes to the separate sign-in page. The admin portal has its own sign-in, described in [Admin Portal Sign-In](#admin-portal-sign-in).
 
 - **Sign up** creates the Supabase Auth account, then the app creates its `users` row (`POST /api/users`, linked by `users.auth_user_id`) and goes to profile setup.
 - **Every API request** sends the session as `Authorization: Bearer <access token>`. The API verifies it against Supabase's published signing keys and loads the `users` row for that account. No token, a bad token or an expired one gets **`401`** (`NOT_SIGNED_IN` or `SESSION_EXPIRED`) and the app goes back to Sign in. A valid session with no `users` row gets `403 NO_PROFILE`, and the app asks for name and city. Only `GET /api/interests` and `GET /api/health` work without signing in.
@@ -290,6 +293,53 @@ To see onboarding, sign up as someone new. The `verify:*` scripts sign in as the
 3. Put `DEMO_PASSWORD` in `server/.env`, then run `npm run db:demo-accounts`. It creates the 16 logins and links them by id.
 
 Run `npm run db:demo-accounts` again after any `db:reset`: a reset keeps the logins but unlinks them. It's safe to re-run.
+
+## Admin Portal Sign-In
+
+The admin portal ([`/#/admin`](https://aura-is401.onrender.com/#/admin)) has its own landing page and its own sign-in, separate from the app's Supabase accounts. Signed out, every admin page shows the landing page: what the portal is for, a screenshot of the OKR Dashboard, and the **Admin sign in** form. The admin tools appear only after signing in.
+
+**Admin login for graders:** it's in our submission, not here. This repo is public, and an admin can read every table, chat messages included. Teammates: ask David for it, or make your own (see **Making an admin account** below).
+
+| Page | Signed out | Signed in |
+|---|---|---|
+| `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
+| `#/admin/records` | Landing page and form; after signing in you're on this page | Every table except users, each with its own **Maintain** button |
+| `#/admin/tables/<name>` | Landing page and form | That table's row count and newest 50 rows, view only (`users` is Maintain Users) |
+| `#/admin/okrs` | Landing page and form | The [OKR Dashboard](#okr-dashboard) |
+
+- **Maintain** pages are view only for now. On phones the table scrolls sideways inside its box. To change a row, use the app or Supabase's Table Editor.
+- **Log out** ends the session and clears the cookie, and the portal goes back to the landing page with the tools hidden. Opening an admin link after that shows the sign-in form again.
+
+**How sign-in works** ([`server/src/lib/adminAuth.js`](server/src/lib/adminAuth.js), [`server/src/routes/admin.js`](server/src/routes/admin.js))
+
+1. The form sends `user_email` and `user_password` to `POST /api/admin/login`.
+2. The API finds the email in `admin_users` (case doesn't matter) and checks the password with **bcrypt** (`bcryptjs`, cost 12) against `admin_users.user_password`, which holds only the hash. A wrong email and a wrong password get the same answer, `401 ADMIN_LOGIN_FAILED`, in about the same time, so the form can't be used to find admin emails. After 5 wrong passwords for one email in 15 minutes, that email gets `429 TOO_MANY_ATTEMPTS` until the 15 minutes are up.
+3. If they match, the API makes a random 32-byte session token, saves only its SHA-256 hash in `admin_sessions` (expiring 8 hours later), and sends the token in the cookie **`aura_admin`**: `HttpOnly` (page JavaScript can't read it), `SameSite=Strict` (another site can't make the browser send it), `Secure` on the live site, and `Path=/api/admin` (only the admin API receives it).
+4. Every other `/api/admin` route runs `requireAdminSession`. No cookie, an unknown token or an expired session gets **`401 ADMIN_SIGNED_OUT`** and no data, and the portal shows the sign-in form again.
+5. `POST /api/admin/logout` deletes the `admin_sessions` row and clears the cookie, so even a saved copy of the old cookie stops working.
+
+| Route | Needs a session | What it does |
+|---|---|---|
+| `POST /api/admin/login` | No | `{ user_email, user_password }` → `{ admin: { email, expiresAt } }` plus the cookie, or `401 ADMIN_LOGIN_FAILED` / `429 TOO_MANY_ATTEMPTS` |
+| `GET /api/admin/session` | No | `{ admin: { email, expiresAt } }` or `{ admin: null }`; the portal asks on load |
+| `POST /api/admin/logout` | No | Ends the session and clears the cookie (`204`) |
+| `GET /api/admin/okrs` | **Yes** | The KRs ([Admin dashboard API](#admin-dashboard-api)) |
+| `GET /api/admin/tables` | **Yes** | Every table with its row count |
+| `GET /api/admin/tables/:name` | **Yes** | That table's columns and newest 50 rows; `404 TABLE_NOT_FOUND` for any name not on the list (`admin_users` and `admin_sessions` never are) |
+
+**Making an admin account.** Admin accounts are separate from app accounts, and neither the seed nor a migration creates one. Put `ADMIN_EMAIL` and `ADMIN_PASSWORD` (at least 12 characters) in `server/.env`, then run:
+
+```bash
+npm run db:admin-account                 # or, for another email: npm run db:admin-account -- someone@example.com
+```
+
+It saves the bcrypt hash, never the password. Running it again for the same email changes the password and signs that admin out everywhere. `db:reset` deletes admin accounts, so run it again after a reset. Migration [`009_admin_login.sql`](db/migrations/009_admin_login.sql) adds the two tables to an existing database (`npm run db:migrate`).
+
+**Why the portal calls `/api` on its own address.** The client and the API are on two different `onrender.com` addresses, which browsers treat as two different sites, and Safari (so every iPhone) won't keep a cookie set by a different site. So the portal always calls `/api/admin/...` on the client's own address. Locally Vite forwards that to the API; on Render, the static site's rewrite rule in [`render.yaml`](render.yaml) (`/api/*` → `https://aura-is401-api.onrender.com/api/*`) does. The rest of the app still calls the API directly with its Supabase token. If the rule is ever missing, the portal says it can't reach the server; see [Deployment](#deployment).
+
+**Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set for an admin account, `npm run verify:admin` runs 27 checks against the API and the database: every admin data route is `401` without a session or with a made-up cookie, a wrong password sets no cookie, the lockout, the cookie's `HttpOnly` / `SameSite=Strict` / `Path`, only hashes in the database, the signed-in routes, and that logging out deletes the session so the old cookie stops working. It signs in once and logs out, which adds and then removes one `admin_sessions` row, so it's fine on the shared database.
+
+**Phone and desktop.** On phones everything is one column, with the sign-in form right under the intro. From 1024px wide the intro and the form sit side by side, the tools are three across and the tables are a grid. Lighthouse Accessibility is 100 on phone and desktop for the landing page, the signed-in home, Maintain Records, a table page and the OKR Dashboard.
 
 ## How We Merge
 

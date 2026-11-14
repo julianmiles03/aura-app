@@ -33,6 +33,15 @@ services:
     autoDeploy: true
     buildCommand: npm ci --workspace client --include-workspace-root && npm run build
     staticPublishPath: client/dist
+    # The admin portal calls /api/admin/* on this site, and Render forwards it to the API. That way
+    # its httpOnly session cookie belongs to this site; set by aura-is401-api.onrender.com it would
+    # be a third-party cookie, which Safari refuses. The rest of the app still calls VITE_API_URL.
+    # If Render doesn't pick this up from the Blueprint, add the same rule by hand:
+    # aura-is401 -> Redirects/Rewrites -> Source /api/* -> Destination (below) -> Action Rewrite.
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://aura-is401-api.onrender.com/api/*
     envVars:
       - key: VITE_API_URL
         value: https://aura-is401-api.onrender.com

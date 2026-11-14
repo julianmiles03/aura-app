@@ -22,6 +22,7 @@ erDiagram
     chats ||--o{ chat_suggestions : "is offered 0..3"
     group_matches ||--o{ meetups : "met up"
     users |o--o{ meetups : confirms
+    admin_users ||--o{ admin_sessions : "signed in as"
 
     users {
         bigint id PK
@@ -36,7 +37,7 @@ erDiagram
         char avatar_color
         bigint active_group_id FK
         uuid auth_user_id UK "Supabase Auth login (auth.users)"
-        boolean is_admin "OKR dashboard access"
+        boolean is_admin "shows the Admin portal link"
         timestamptz created_at
     }
     user_photos {
@@ -129,4 +130,18 @@ erDiagram
         bigint match_id FK
         bigint confirmed_by_user_id FK
         timestamptz created_at
+    }
+    admin_users {
+        bigint id PK
+        varchar user_email UK "lowercase"
+        text user_password "bcrypt hash"
+        timestamptz created_at
+        timestamptz last_login_at
+    }
+    admin_sessions {
+        bigint id PK
+        bigint admin_user_id FK
+        char token_hash UK "SHA-256 of the cookie token"
+        timestamptz created_at
+        timestamptz expires_at
     }

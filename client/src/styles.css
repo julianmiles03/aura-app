@@ -1061,7 +1061,7 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .muted-small { color: var(--muted); font-size: 14px; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-/* ---------- Admin portal (#/admin, #/admin/okrs) ---------- */
+/* ---------- Admin portal (#/admin and its pages; signed out it is the landing page) ---------- */
 .frame--admin { --tabbar-h: 0px; }
 .admin-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px var(--gutter) 0; }
 .admin-bar__brand { font-size: 30px; text-decoration: none; }
@@ -1102,12 +1102,79 @@ a.admin-tile:hover { border-color: var(--accent); }
 .admin-tile__title { font-family: var(--font-head); font-size: 19px; font-weight: 700; }
 .admin-tile__desc { color: var(--muted); font-size: 15px; }
 .admin-tile__go { display: inline-flex; align-items: center; margin-top: 8px; color: var(--accent-ink); font-weight: 700; font-size: 15px; }
-.admin-tile--soon { background: transparent; border-style: dashed; border-color: #cfccdb; cursor: default; }
-.admin-tile--soon .admin-tile__icon { background: var(--chip-gray); color: var(--muted); }
-.admin-tile__soon { margin-top: 8px; padding: 4px 10px; border-radius: 999px; background: var(--chip-gray); color: var(--muted); font-size: 13px; font-weight: 700; }
-.admin-denied { margin-top: 24px; }
-.admin-denied h1 { font-size: 24px; margin-bottom: 8px; }
 .profile-admin { margin-top: 8px; }
+/* Headings that get focus after sign in / log out (tabIndex -1) don't need a focus ring. */
+.frame--admin [tabindex='-1']:focus { outline: none; }
+
+/* Landing page (signed out): intro, sign-in card, product shot, features. One column on phones. */
+.frame--admin-landing {
+  background:
+    radial-gradient(120% 60% at 100% 0%, var(--accent-tint) 0%, transparent 55%),
+    var(--ground);
+}
+.admin-landing { display: grid; gap: 22px; padding-top: 14px; }
+.admin-eyebrow { margin: 0 0 10px; color: var(--accent-ink); font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.admin-landing h1 { font-size: 38px; font-weight: 800; line-height: 1.04; letter-spacing: -0.03em; }
+.admin-lead { margin: 14px 0 0; color: var(--muted); font-size: 18px; line-height: 1.5; }
+.admin-login { margin: 0; }
+.admin-login__note { margin: -4px 0 16px; color: var(--muted); font-size: 15px; }
+.admin-notice { margin: 0 0 14px; padding: 10px 14px; border-radius: 14px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.admin-login__fine { margin: 14px 0 0; color: var(--muted); font-size: 14px; text-align: center; }
+.admin-shot { margin: 0; }
+.admin-shot__frame { overflow: hidden; border: 1px solid var(--line); border-radius: 18px; background: var(--card); box-shadow: 0 18px 50px rgba(59, 35, 199, 0.14); }
+.admin-shot__bar { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: #faf9fd; }
+.admin-shot__bar span { width: 10px; height: 10px; border-radius: 50%; background: #d9d6e3; }
+.admin-shot img { display: block; width: 100%; height: auto; }
+.admin-shot figcaption { margin-top: 10px; color: var(--muted); font-size: 14px; text-align: center; }
+.admin-features { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.admin-feature { display: flex; align-items: flex-start; gap: 14px; padding: 16px 18px; border: 1px solid var(--line); border-radius: var(--radius-inner); background: var(--card); }
+.admin-feature__title { display: block; font-family: var(--font-head); font-size: 18px; font-weight: 700; }
+.admin-feature__text { display: block; margin-top: 4px; color: var(--muted); font-size: 15px; }
+.admin-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; padding: 0 var(--gutter) 24px; color: var(--muted); font-size: 14px; }
+.admin-foot a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent-ink); font-weight: 700; }
+
+/* Signed in: the table lists (home, Maintain Records) and one table's rows */
+.admin-section { margin-top: 30px; }
+.admin-section__title { font-size: 22px; font-weight: 700; }
+.admin-section__text, .admin-intro { margin: 6px 0 14px; color: var(--muted); font-size: 15px; }
+.admin-intro { margin-top: -4px; }
+.admin-intro a { color: var(--accent-ink); font-weight: 700; }
+.admin-table-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.admin-table-list > li { display: flex; align-items: center; gap: 12px; min-height: 68px; padding: 10px 12px 10px 16px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
+.admin-table-list__text { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.admin-table-list__name { font-weight: 700; overflow-wrap: anywhere; }
+.admin-table-list__about { color: var(--ink); font-size: 15px; }
+.admin-table-list__meta { color: var(--muted); font-size: 14px; overflow-wrap: anywhere; }
+.admin-table-list code, .admin-table-meta code { font-size: 13px; background: var(--chip-gray); padding: 1px 6px; border-radius: 6px; color: var(--ink); }
+.admin-table-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 14px 0 10px; }
+.admin-table-head .page-title { overflow-wrap: anywhere; }
+.admin-badge { display: inline-flex; align-items: center; min-height: 28px; padding: 0 12px; border-radius: 999px; background: var(--chip-gray); color: var(--muted); font-size: 14px; font-weight: 700; }
+.admin-table-meta { margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+.admin-table-meta strong { color: var(--ink); }
+.admin-table-empty { padding: 24px; border: 1px dashed #cfccdb; border-radius: 16px; color: var(--muted); text-align: center; }
+/* Wide tables scroll sideways inside this box; the page itself never scrolls sideways. A soft shadow
+   at an edge means there are more columns that way (the white covers scroll with the table, the
+   shadows stay put, so each shadow shows only while there's more to see on that side). */
+.admin-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background:
+    linear-gradient(to right, var(--card) 30%, transparent) left / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--card) 30%, transparent) right / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(22, 21, 28, 0.16), transparent) left / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(22, 21, 28, 0.16), transparent) right / 14px 100% no-repeat scroll,
+    var(--card);
+}
+.admin-table { min-width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table th, .admin-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+.admin-table th { background: #faf9fd; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 600; }
+.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-table tbody tr:hover td { background: #faf9fd; }
+/* Long values (bios, photo URLs) end in an ellipsis; the full text is in the tooltip and read out in full. */
+.admin-cell { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; }
+.admin-cell--null { color: var(--faint); font-style: italic; }
+.admin-table-skeleton { display: grid; gap: 14px; padding: 18px; }
 
 .admin-back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; margin-top: 6px; color: var(--accent-ink); font-weight: 700; text-decoration: none; }
 .okr-head { padding-top: 2px; flex-wrap: wrap; }
@@ -1291,10 +1358,34 @@ a.admin-tile:hover { border-color: var(--accent); }
   .admin-tile { flex-direction: column; align-items: stretch; min-height: 200px; padding: 22px; }
   .admin-tile__icon { align-self: flex-start; }
   .admin-tile__desc { margin-bottom: 12px; }
-  .admin-tile__go, .admin-tile__soon { margin-top: auto; }
-  .admin-signout { max-width: 320px; }
+  .admin-tile__go { margin-top: auto; }
   .okr-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
   .okr-card { padding: 26px 28px; }
   .okr-figures__now dd { font-size: 60px; }
   .sidebar__admin { margin-bottom: 12px; }
+
+  /* Landing page: full width so its background reaches the window's edges, content still 1180px.
+     Intro beside the sign-in card, then the product shot, then the features in a row. */
+  .frame--admin-landing { max-width: none; }
+  .frame--admin-landing > * { max-width: 1180px; margin-inline: auto; }
+  .admin-landing {
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+    column-gap: 64px;
+    row-gap: 40px;
+    align-items: center;
+    padding-top: 36px;
+  }
+  .admin-landing h1 { font-size: 60px; }
+  .admin-lead { font-size: 20px; max-width: 32em; }
+  .admin-login { padding: 28px; }
+  .admin-shot, .admin-features { grid-column: 1 / -1; }
+  .admin-shot { max-width: 1040px; justify-self: center; width: 100%; }
+  .admin-features { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
+  .admin-feature { flex-direction: column; padding: 22px; }
+  .admin-foot { padding: 8px 40px 32px; }
+
+  /* Table lists: three across on home, two across (with descriptions) on Maintain Records. */
+  .admin-table-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .admin-table-list--about { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-cell { max-width: 40ch; }
 }

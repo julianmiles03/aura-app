@@ -16,10 +16,13 @@
     "verify:own-groups": "node scripts/verify-own-groups.js",
     "verify:suggestions": "node scripts/verify-suggestions.js",
     "verify:messages": "node scripts/verify-messages.js",
+    "verify:admin": "node scripts/verify-admin.js",
     "db:check": "node scripts/db-check.js",
-    "db:demo-accounts": "node scripts/demo-accounts.js"
+    "db:demo-accounts": "node scripts/demo-accounts.js",
+    "db:admin-account": "node scripts/admin-account.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "dotenv": "^17.2.0",
     "express": "^5.2.1",
     "jose": "^6.2.16",
