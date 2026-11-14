@@ -43,6 +43,14 @@ if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
   process.exit(1);
 }
 
+// The checks talk to a running API. If there isn't one, say so instead of failing on the first request.
+try {
+  await fetch(`${API}/health`);
+} catch {
+  console.error(`Can't reach the API at ${API}. Start it with npm run dev in another terminal, then run this again.`);
+  process.exit(1);
+}
+
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const owners = async (groupId) => (await db.query(
   "SELECT user_id::int AS id FROM group_memberships WHERE group_id = $1 AND role = 'owner'", [groupId])).rows.map((r) => r.id);
