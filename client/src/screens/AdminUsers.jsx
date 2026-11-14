@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { adminApi } from '../adminApi.js';
-import { ConfirmSheet, fullName, LoadError, plural, useAdminData } from '../components/AdminCommon.jsx';
+import { AdminField, ConfirmSheet, fullName, LoadError, plural, useAdminData } from '../components/AdminCommon.jsx';
 import Avatar from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
 import { Loader, LoadingStatus, Skeleton, Spinner } from '../components/Loading.jsx';
@@ -114,44 +114,44 @@ export function UsersPage() {
           {shown.length === 0 ? (
             <p className="admin-table-empty">{q ? 'No one matches that search.' : 'There are no users yet.'}</p>
           ) : (
-            // On phones the less important columns are hidden (admin-users__wide), so the table fits.
-            <div className="admin-table-wrap admin-users" role="region" aria-labelledby="admin-title" tabIndex={0}>
+            // On phones the less important columns are hidden (admin-crud__wide), so the table fits.
+            <div className="admin-table-wrap admin-crud" role="region" aria-labelledby="admin-title" tabIndex={0}>
               <table className="admin-table">
                 <caption className="sr-only">aura users, A to Z</caption>
                 <thead>
                   <tr>
                     <th scope="col">Name</th>
-                    <th scope="col" className="admin-users__wide">City</th>
-                    <th scope="col" className="admin-users__wide">Age</th>
-                    <th scope="col" className="admin-users__narrow">Groups</th>
-                    <th scope="col" className="admin-users__wide">Login</th>
-                    <th scope="col" className="admin-users__wide">Added</th>
-                    <th scope="col" className="admin-users__actions"><span className="sr-only">Actions</span></th>
+                    <th scope="col" className="admin-crud__wide">City</th>
+                    <th scope="col" className="admin-crud__wide">Age</th>
+                    <th scope="col" className="admin-crud__narrow">Groups</th>
+                    <th scope="col" className="admin-crud__wide">Login</th>
+                    <th scope="col" className="admin-crud__wide">Added</th>
+                    <th scope="col" className="admin-crud__actions"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {shown.map((u) => (
                     <tr key={u.id}>
-                      <th scope="row" className="admin-users__rowhead">
-                        <span className="admin-users__person">
+                      <th scope="row" className="admin-crud__rowhead">
+                        <span className="admin-crud__person">
                           <Avatar src={u.photoUrl} personId={u.id} color={u.avatarColor} size={36} />
-                          <span className="admin-users__name">
+                          <span className="admin-crud__name">
                             {fullName(u)}
-                            <span className="admin-users__sub">{u.city}</span>
+                            <span className="admin-crud__sub">{u.city}</span>
                           </span>
                         </span>
                       </th>
-                      <td className="admin-users__wide">{u.city}</td>
-                      <td className="admin-users__wide">{u.age ?? <span className="admin-cell--null">–</span>}</td>
-                      <td className="admin-users__narrow">{u.groupCount}</td>
-                      <td className="admin-users__wide">{u.hasLogin ? 'Yes' : <span className="admin-cell--null">No</span>}</td>
-                      <td className="admin-users__wide"><time dateTime={u.createdAt}>{formatDay(u.createdAt)}</time></td>
-                      <td className="admin-users__actions">
+                      <td className="admin-crud__wide">{u.city}</td>
+                      <td className="admin-crud__wide">{u.age ?? <span className="admin-cell--null">–</span>}</td>
+                      <td className="admin-crud__narrow">{u.groupCount}</td>
+                      <td className="admin-crud__wide">{u.hasLogin ? 'Yes' : <span className="admin-cell--null">No</span>}</td>
+                      <td className="admin-crud__wide"><time dateTime={u.createdAt}>{formatDay(u.createdAt)}</time></td>
+                      <td className="admin-crud__actions">
                         <button type="button" className="btn btn--outline btn--sm" onClick={() => setEditing(u)} aria-label={`Edit ${fullName(u)}`}>
-                          <Icon name="pencil" size={18} /><span className="admin-users__btn-text">Edit</span>
+                          <Icon name="pencil" size={18} /><span className="admin-crud__btn-text">Edit</span>
                         </button>
                         <button type="button" className="btn btn--danger btn--sm" onClick={() => setDeleting(u)} aria-label={`Delete ${fullName(u)}`}>
-                          <Icon name="trash" size={18} /><span className="admin-users__btn-text">Delete</span>
+                          <Icon name="trash" size={18} /><span className="admin-crud__btn-text">Delete</span>
                         </button>
                       </td>
                     </tr>
@@ -178,23 +178,6 @@ export function UsersPage() {
 // ---------------------------------------------------------------------------
 // Add / edit
 // ---------------------------------------------------------------------------
-// One labeled field with its error (or hint) and, for text with a limit, a "12/50" count under it.
-// The error is tied to the input (aria-describedby), so screen readers read it with the field.
-function AdminField({ id, label, error, hint, count, max, children }) {
-  return (
-    <div className="field">
-      <label className="field__label" htmlFor={id}>{label}</label>
-      {children}
-      <div className="field__foot">
-        {error
-          ? <span id={`${id}-error`} className="field__error">{error}</span>
-          : hint && <span id={`${id}-hint`} className="field__hint">{hint}</span>}
-        {max && <span className="field__count" aria-hidden="true">{count}/{max}</span>}
-      </div>
-    </div>
-  );
-}
-
 function UserFormSheet({ user, onClose, onSaved }) {
   const isNew = !user;
   const [v, setV] = useState(isNew ? BLANK : null); // null while the edit form loads the full profile

@@ -52,3 +52,20 @@ export function ConfirmSheet({ title, children, confirmLabel, busyLabel, onConfi
     </Sheet>
   );
 }
+
+// One labeled field with its error (or hint) and, for text with a limit, a "12/50" count under it.
+// The error is tied to the input (aria-describedby), so screen readers read it with the field.
+export function AdminField({ id, label, error, hint, count, max, children }) {
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>{label}</label>
+      {children}
+      <div className="field__foot">
+        {error
+          ? <span id={`${id}-error`} className="field__error">{error}</span>
+          : hint && <span id={`${id}-hint`} className="field__hint">{hint}</span>}
+        {max && <span className="field__count" aria-hidden="true">{count}/{max}</span>}
+      </div>
+    </div>
+  );
+}

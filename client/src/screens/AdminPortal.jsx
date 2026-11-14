@@ -7,12 +7,15 @@ import { Field, FormError, useAsyncAction, useToast } from '../components/ui.jsx
 import { LoadError, useAdminData } from '../components/AdminCommon.jsx';
 import { GroupPage, GroupsPage } from './AdminGroups.jsx';
 import { UsersPage } from './AdminUsers.jsx';
+import { InterestsPage } from './AdminInterests.jsx';
+import { MeetupsPage } from './AdminMeetups.jsx';
 import { formatDay } from '../format.js';
 import { canRetry, friendlyError } from '../friendlyError.js';
 import dashboardShot from '../assets/admin-okr-dashboard.webp';
 
 // The admin portal. Signed out, #/admin (and every other admin page) is the landing page with the
 // sign-in form. Signed in: #/admin (home), #/admin/users (Maintain Users, in AdminUsers.jsx),
+// #/admin/interests and #/admin/meetups (AdminInterests.jsx, AdminMeetups.jsx),
 // #/admin/groups, #/admin/groups/:id (Maintain Groups, in AdminGroups.jsx), #/admin/records,
 // #/admin/tables/:name, #/admin/okrs.
 //
@@ -21,7 +24,7 @@ import dashboardShot from '../assets/admin-okr-dashboard.webp';
 // is for people; the real guard is the API, which answers 401 to any admin request without a session.
 
 const clock = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
-const pageTitle = (page) => ({ okrs: 'OKR Dashboard', records: 'Maintain Records', users: 'Maintain Users', groups: 'Maintain Groups', group: 'Maintain Groups' })[page] ?? 'Admin portal';
+const pageTitle = (page) => ({ okrs: 'OKR Dashboard', records: 'Maintain Records', users: 'Maintain Users', interests: 'Maintain Interests', meetups: 'Maintain Meetups', groups: 'Maintain Groups', group: 'Maintain Groups' })[page] ?? 'Admin portal';
 
 export default function AdminPortal({ page, tableName, groupId }) {
   // undefined while we ask the API whether this browser has a session, then null or { email, expiresAt }.
@@ -100,6 +103,8 @@ export default function AdminPortal({ page, tableName, groupId }) {
   else if (!admin) body = <AdminLanding notice={notice} onSignedIn={signedIn} />;
   else if (page === 'okrs') body = <OkrDashboard />;
   else if (page === 'users') body = <UsersPage />;
+  else if (page === 'interests') body = <InterestsPage />;
+  else if (page === 'meetups') body = <MeetupsPage />;
   else if (page === 'groups') body = <GroupsPage />;
   else if (page === 'group') body = <GroupPage key={groupId} id={groupId} />;
   else if (page === 'records') body = <RecordsPage />;
@@ -138,7 +143,7 @@ export default function AdminPortal({ page, tableName, groupId }) {
 const FEATURES = [
   { icon: 'profile', title: 'Maintain users', text: 'A table of every aura user, with add, edit and delete, and clear messages when something needs fixing.' },
   { icon: 'users', title: 'Maintain groups', text: 'Create, edit and delete friend groups and choose who is in them, up to 10 people each.' },
-  { icon: 'archive', title: 'Maintain records', text: 'Open any table behind the app, from friend groups and matches to chats, messages and meetups.' },
+  { icon: 'archive', title: 'Maintain records', text: 'Add, edit and delete interests and meetups, and open any other table behind the app.' },
   { icon: 'chart', title: 'OKR Dashboard', text: 'KR1-KR4 against our targets, counted from real activity in the app every time you look.' },
 ];
 
@@ -250,6 +255,8 @@ function AdminLoginForm({ notice, onSignedIn }) {
 const TOOLS = [
   { title: 'Maintain Users', text: 'Add, edit and delete aura users.', icon: 'profile', href: '#/admin/users' },
   { title: 'Maintain Groups', text: 'Create, edit and delete groups and their members.', icon: 'users', href: '#/admin/groups' },
+  { title: 'Maintain Interests', text: 'Add, rename and delete the interests people pick.', icon: 'sparkle', href: '#/admin/interests' },
+  { title: 'Maintain Meetups', text: 'Add, edit and delete "We met up!" records (KR4).', icon: 'pin', href: '#/admin/meetups' },
   { title: 'Maintain Records', text: 'Groups, likes, matches, chats and every other table.', icon: 'archive', href: '#/admin/records' },
   { title: 'OKR Dashboard', text: 'KR1-KR4, live from real activity, against our targets.', icon: 'chart', href: '#/admin/okrs' },
 ];
@@ -355,6 +362,8 @@ function TableList({ tables, withAbout = false }) {
 const GROUPS_TOOL = { tool: 'Maintain Groups', href: '#/admin/groups', what: 'groups and members' };
 const EDITED_IN = {
   users: { tool: 'Maintain Users', href: '#/admin/users', what: 'users' },
+  interests: { tool: 'Maintain Interests', href: '#/admin/interests', what: 'interests' },
+  meetups: { tool: 'Maintain Meetups', href: '#/admin/meetups', what: 'meetups' },
   friend_groups: GROUPS_TOOL,
   group_memberships: GROUPS_TOOL,
 };
