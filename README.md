@@ -137,7 +137,7 @@ All four Key Results are computed automatically by the `okr_metrics` view (in [`
 
 This is where we track KR1-KR4, and what we show in the KR video and the live demo. It's in the admin portal, inside the app.
 
-- **Opening it:** go to [`/#/admin`](https://aura-is401.onrender.com/#/admin), sign in with an admin account ([how to make one](#admin-portal-sign-in)) and choose **OKR Dashboard**, or open [`/#/admin/okrs`](https://aura-is401.onrender.com/#/admin/okrs) and sign in there. App users with `users.is_admin` also have an **Admin portal** shortcut on Profile (and in the desktop sidebar), which leads to the same sign-in. Without an admin session the API gives the dashboard no data (`401 ADMIN_SIGNED_OUT`).
+- **Opening it:** go to [`/#/admin`](https://aura-is401.onrender.com/#/admin), sign in with an admin account ([how to make one](#admin-portal-sign-in)) and choose **OKR Dashboard**, or open [`/#/admin/okrs`](https://aura-is401.onrender.com/#/admin/okrs) and sign in there. App users with `users.is_admin` also have an **Admin portal** shortcut on Profile (and in the desktop sidebar), which signs them straight in ([Signing in from the app](#admin-portal-sign-in)). Without an admin session the API gives the dashboard no data (`401 ADMIN_SIGNED_OUT`).
 - **What each KR card shows:** the current percentage next to the target, **On track** or **Below target**, the raw counts (for example "6 of 10 groups"), how far it is from the target ("2 more groups to reach the target" or "10 points above target"), and the action and table that move it. KR3 and KR4 show "No data yet" until some group has matched.
 - **When it updates:** the numbers load when the page opens, and **Refresh** reads them again. The line under the title shows when they were read. There are no manual numbers: every value is counted from real activity by `okr_metrics`. The only fixed numbers are the targets.
 - **Targets:** set in `TARGETS` in [`server/src/routes/admin.js`](server/src/routes/admin.js). Change them there.
@@ -170,7 +170,7 @@ The [OKR Dashboard](#okr-dashboard) shows the KRs from `GET /api/admin/okrs`. Li
 }
 ```
 
-`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. `target` is our goal for that KR, as a percentage. To give someone admin access, make them an admin account with `npm run db:admin-account` ([Admin Portal Sign-In](#admin-portal-sign-in)). `users.is_admin` only gives an app user the **Admin portal** shortcut in the app (`GET /api/me` returns it as `user.isAdmin`); set it in Supabase's **SQL Editor** (`users.id` is in the Table Editor):
+`pct` is 0-100 with one decimal place, or `null` when `outOf` is 0. `target` is our goal for that KR, as a percentage. To give someone with an aura account admin access, set `users.is_admin` for them: the app then shows them the **Admin portal** shortcut (`GET /api/me` returns it as `user.isAdmin`), and the portal signs them in from the app, making their admin login the first time ([Admin Portal Sign-In](#admin-portal-sign-in)). Set it in Supabase's **SQL Editor** (`users.id` is in the Table Editor). For an admin without an aura account, use `npm run db:admin-account` instead.
 
 ```sql
 UPDATE users SET is_admin = true WHERE id = <their users.id>;
@@ -329,12 +329,21 @@ The admin portal ([`/#/admin`](https://aura-is401.onrender.com/#/admin)) has its
 |---|---|---|
 | `POST /api/admin/login` | No | `{ user_email, user_password }` → `{ admin: { email, expiresAt } }` plus the cookie, or `401 ADMIN_LOGIN_FAILED` / `429 TOO_MANY_ATTEMPTS` |
 | `GET /api/admin/session` | No | `{ admin: { email, expiresAt } }` or `{ admin: null }`; the portal asks on load |
+| `POST /api/admin/session/app` | The app's session (`Authorization: Bearer`) | Signs an app admin in (above): `{ admin }` plus the cookie, or `401` / `403 NOT_ADMIN` |
 | `POST /api/admin/logout` | No | Ends the session and clears the cookie (`204`) |
 | `GET /api/admin/okrs` | **Yes** | The KRs ([Admin dashboard API](#admin-dashboard-api)) |
 | `GET /api/admin/tables` | **Yes** | Every table with its row count |
 | `GET /api/admin/tables/:name` | **Yes** | That table's columns and newest 50 rows; `404 TABLE_NOT_FOUND` for any name not on the list (`admin_users` and `admin_sessions` never are) |
 
-**Making an admin account.** Admin accounts are separate from app accounts, and neither the seed nor a migration creates one. Put `ADMIN_EMAIL` and `ADMIN_PASSWORD` (at least 12 characters) in `server/.env`, then run:
+**Signing in from the app (app admins).** Someone whose aura account is marked admin (`users.is_admin`, like Avery on Find Friends App) doesn't need a separate password:
+
+- If they're signed in to the app and open the portal (the **Admin portal** shortcut on Profile or in the desktop sidebar, or `#/admin` directly), it signs them in by itself.
+- The first time, their admin login is made for them: an `admin_users` row with the email they use for the app and a long random bcrypt-hashed password nobody is ever told. So that login only works this way, never on the sign-in form, until someone sets a real password for that email with `npm run db:admin-account`. After that, the same login is reused.
+- How: the portal sends the app's own session to `POST /api/admin/session/app` (`Authorization: Bearer`, checked exactly like every app request). The API answers `403 NOT_ADMIN` for anyone whose `users.is_admin` isn't true, and otherwise starts a normal portal session with the same httpOnly cookie.
+- After **Log out**, the portal doesn't sign them straight back in (for that browser tab). The sign-in page shows **Continue as avery@example.com** instead, one tap to come back.
+- People who aren't admins just see the normal sign-in page; nothing changes for them.
+
+**Making an admin account.** For admins without an aura account (or to give an app admin a real password). Admin accounts are separate from app accounts, and neither the seed nor a migration creates one. Put `ADMIN_EMAIL` and `ADMIN_PASSWORD` (at least 12 characters) in `server/.env`, then run:
 
 ```bash
 npm run db:admin-account                 # or, for another email: npm run db:admin-account -- someone@example.com
@@ -343,6 +352,8 @@ npm run db:admin-account                 # or, for another email: npm run db:adm
 It saves the bcrypt hash, never the password. Running it again for the same email changes the password and signs that admin out everywhere. `db:reset` deletes admin accounts, so run it again after a reset. Migration [`009_admin_login.sql`](db/migrations/009_admin_login.sql) adds the two tables to an existing database (`npm run db:migrate`).
 
 **Why the portal calls `/api` on its own address.** The client and the API are on two different `onrender.com` addresses, which browsers treat as two different sites, and Safari (so every iPhone) won't keep a cookie set by a different site. So the portal always calls `/api/admin/...` on the client's own address. Locally Vite forwards that to the API; on Render, the static site's rewrite rule in [`render.yaml`](render.yaml) (`/api/*` → `https://aura-is401-api.onrender.com/api/*`) does. The rest of the app still calls the API directly with its Supabase token. If the rule is ever missing, the portal says it can't reach the server; see [Deployment](#deployment).
+
+**Checking signing in from the app.** `npm run verify:admin-app-login` (needs `SUPABASE_PUBLISHABLE_KEY` and `DEMO_PASSWORD`, like the other demo-account scripts) runs up to 12 checks: `401` with no or a made-up app session, `403 NOT_ADMIN` for a demo account that isn't an admin (and no admin login made for them), and for one that is: the cookie, the admin login made once with a bcrypt hash and reused after, admin routes working, the app password not working on the sign-in form, and log out. If it had to make the admin login, it deletes it again. Lighthouse Accessibility is 100 on phone and desktop for the sign-in page showing **Continue as**.
 
 **Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set for an admin account, `npm run verify:admin` runs 27 checks against the API and the database: every admin data route is `401` without a session or with a made-up cookie, a wrong password sets no cookie, the lockout, the cookie's `HttpOnly` / `SameSite=Strict` / `Path`, only hashes in the database, the signed-in routes, and that logging out deletes the session so the old cookie stops working. It signs in once and logs out, which adds and then removes one `admin_sessions` row, so it's fine on the shared database.
 

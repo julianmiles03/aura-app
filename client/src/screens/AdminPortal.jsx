@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ADMIN_SIGNED_OUT_EVENT, adminApi } from '../adminApi.js';
+import { ADMIN_SIGNED_OUT_EVENT, adminApi, appSession } from '../adminApi.js';
 import FlameMark from '../components/FlameMark.jsx';
 import Icon from '../components/Icon.jsx';
 import { Loader, LoadingStatus, Skeleton, Spinner } from '../components/Loading.jsx';
@@ -22,6 +22,27 @@ import dashboardShot from '../assets/admin-okr-dashboard.webp';
 // It has its own sign-in, separate from the app's: an admin account (admin_users) and an httpOnly
 // session cookie (see adminApi.js and server/src/lib/adminAuth.js). Hiding the tools until sign-in
 // is for people; the real guard is the API, which answers 401 to any admin request without a session.
+// App users marked admin (users.is_admin, like Avery) don't need a password: if they're signed in to
+// the app, the portal signs them in automatically (POST /api/admin/session/app).
+
+// After "Log out", don't sign an app admin straight back in. Remembered for this tab only; the
+// sign-in page offers "Continue as ..." instead. Storage can be blocked, so every use is guarded.
+const NO_AUTO = 'aura.adminNoAutoSignIn';
+const autoSignInOff = () => { try { return sessionStorage.getItem(NO_AUTO) === '1'; } catch { return false; } };
+const setAutoSignInOff = (off) => {
+  try { if (off) sessionStorage.setItem(NO_AUTO, '1'); else sessionStorage.removeItem(NO_AUTO); } catch { /* fine without it */ }
+};
+
+// Signs in to the portal with the app's session. Resolves to { admin } on success, or
+// { denied: true } when the app account isn't an admin (403 NOT_ADMIN). Other errors are thrown.
+async function signInFromApp(token) {
+  try {
+    return await adminApi('/admin/session/app', { method: 'POST', appToken: token });
+  } catch (err) {
+    if (err.code === 'NOT_ADMIN' || err.status === 401) return { denied: true };
+    throw err;
+  }
+}
 
 const clock = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
 const pageTitle = (page) => ({ okrs: 'OKR Dashboard', records: 'Maintain Records', users: 'Maintain Users', interests: 'Maintain Interests', meetups: 'Maintain Meetups', groups: 'Maintain Groups', group: 'Maintain Groups' })[page] ?? 'Admin portal';
@@ -31,6 +52,9 @@ export default function AdminPortal({ page, tableName, groupId }) {
   const [admin, setAdmin] = useState(undefined);
   // A message for the sign-in card: why you're seeing it ("You logged out.", "Your session ended.").
   const [notice, setNotice] = useState(null);
+  // Signed in to the app as an account that might be an admin: { email, token }, for "Continue as".
+  // Cleared once the API says that account isn't an admin.
+  const [appAccount, setAppAccount] = useState(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const toast = useToast();
   // Signing in or out swaps the whole page, and the button that had focus goes with it. Then focus
@@ -52,14 +76,28 @@ export default function AdminPortal({ page, tableName, groupId }) {
     }
   }, [admin]);
 
-  // On load: is there already a session? The cookie is httpOnly, so only the API can tell.
+  // On load: is there already a portal session? The cookie is httpOnly, so only the API can tell.
+  // If not, and this browser is signed in to the app, try signing in from the app: that works for
+  // app admins (and quietly doesn't for everyone else, who see the sign-in page as usual).
   useEffect(() => {
-    adminApi('/admin/session')
-      .then((data) => setAdmin(data.admin))
-      .catch((err) => {
+    (async () => {
+      try {
+        const { admin: current } = await adminApi('/admin/session');
+        if (current) return setAdmin(current);
+        const app = await appSession();
+        if (app && !autoSignInOff()) {
+          const result = await signInFromApp(app.token);
+          if (result.admin) return setAdmin(result.admin);
+          // Not an admin: no "Continue as" for this account.
+        } else if (app) {
+          setAppAccount(app);
+        }
+        setAdmin(null);
+      } catch (err) {
         setAdmin(null);
         setNotice({ tone: 'error', text: friendlyError(err) });
-      });
+      }
+    })();
   }, []);
 
   // Any admin request that comes back "signed out" (expired, or logged out in another tab).
@@ -76,8 +114,19 @@ export default function AdminPortal({ page, tableName, groupId }) {
 
   const signedIn = (next) => {
     setNotice(null);
+    setAutoSignInOff(false);
     focusTitle.current = true;
     setAdmin(next);
+  };
+
+  // "Continue as avery@example.com" on the sign-in page.
+  const continueFromApp = async () => {
+    const app = await appSession();
+    const result = app ? await signInFromApp(app.token) : { denied: true };
+    if (result.admin) return signedIn(result.admin);
+    setAppAccount(null);
+    setNotice({ tone: 'error', text: "That aura account isn't an admin. Sign in with an admin email and password instead." });
+    return undefined;
   };
 
   // Log out: the API deletes the session and clears the cookie, then the tools are hidden again.
@@ -87,6 +136,8 @@ export default function AdminPortal({ page, tableName, groupId }) {
     setLoggingOut(true);
     try {
       await adminApi('/admin/logout', { method: 'POST' });
+      setAutoSignInOff(true); // stay logged out of the portal, even though the app is still signed in
+      setAppAccount(await appSession());
       focusTitle.current = true;
       setAdmin(null);
       setNotice({ tone: 'info', text: 'You logged out.' });
@@ -100,7 +151,7 @@ export default function AdminPortal({ page, tableName, groupId }) {
 
   let body;
   if (admin === undefined) body = <Loader label="Loading the admin portal…" />;
-  else if (!admin) body = <AdminLanding notice={notice} onSignedIn={signedIn} />;
+  else if (!admin) body = <AdminLanding notice={notice} onSignedIn={signedIn} appAccount={appAccount} onContinue={continueFromApp} />;
   else if (page === 'okrs') body = <OkrDashboard />;
   else if (page === 'users') body = <UsersPage />;
   else if (page === 'interests') body = <InterestsPage />;
@@ -147,7 +198,7 @@ const FEATURES = [
   { icon: 'chart', title: 'OKR Dashboard', text: 'KR1-KR4 against our targets, counted from real activity in the app every time you look.' },
 ];
 
-function AdminLanding({ notice, onSignedIn }) {
+function AdminLanding({ notice, onSignedIn, appAccount, onContinue }) {
   return (
     <div className="admin-landing">
       <section className="admin-landing__intro" aria-labelledby="admin-title">
@@ -159,7 +210,7 @@ function AdminLanding({ notice, onSignedIn }) {
         </p>
       </section>
 
-      <AdminLoginForm notice={notice} onSignedIn={onSignedIn} />
+      <AdminLoginForm notice={notice} onSignedIn={onSignedIn} appAccount={appAccount} onContinue={onContinue} />
 
       <figure className="admin-shot">
         <div className="admin-shot__frame">
@@ -192,7 +243,7 @@ function AdminLanding({ notice, onSignedIn }) {
 // The sign-in form. Its fields are named user_email and user_password, the same names the API
 // expects and the admin_users columns use. The password goes to the API over HTTPS and is only
 // ever compared with its bcrypt hash there.
-function AdminLoginForm({ notice, onSignedIn }) {
+function AdminLoginForm({ notice, onSignedIn, appAccount, onContinue }) {
   const [v, setV] = useState({ user_email: '', user_password: '' });
   const { busy, error, run } = useAsyncAction();
   const set = (k) => (e) => setV({ ...v, [k]: e.target.value });
@@ -213,12 +264,24 @@ function AdminLoginForm({ notice, onSignedIn }) {
   return (
     <section className="card admin-login" aria-labelledby="admin-login-title">
       <h2 id="admin-login-title" className="card__title">Admin sign in</h2>
-      <p className="admin-login__note">For Team Aura admins. Your aura app account doesn't work here.</p>
+      <p className="admin-login__note">
+        For Team Aura admins. If your aura account is an admin, sign in to the app first and the portal
+        lets you straight in.
+      </p>
       {/* Why you're here ("You logged out."); replaced by the form's own error once you try again. */}
       {notice && !error && !busy && (
         <p className={notice.tone === 'error' ? 'form-error' : 'admin-notice'} role={notice.tone === 'error' ? 'alert' : 'status'}>
           {notice.text}
         </p>
+      )}
+      {appAccount && (
+        // Signed in to the app (and logged out of the portal in this tab): one tap to come back in.
+        <div className="admin-app-signin">
+          <button type="button" className="btn btn--soft btn--block" onClick={() => run(onContinue)} disabled={busy}>
+            <Icon name="profile" size={20} /><span className="admin-app-signin__text">Continue as {appAccount.email}</span>
+          </button>
+          <p className="admin-app-signin__or"><span>or use an admin email and password</span></p>
+        </div>
       )}
       <form onSubmit={submit}>
         <FormError error={error} id="admin-login-error" />

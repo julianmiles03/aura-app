@@ -9,18 +9,34 @@
 // site as the page. Set by the API's own onrender.com address instead, it would be a third-party
 // cookie, which Safari (and so every iPhone) refuses to keep.
 import { ApiError } from './api.js';
+import { supabase } from './supabase.js';
 
 // Any admin request that comes back 401 ADMIN_SIGNED_OUT (the session expired, or someone logged
 // out in another tab) fires this, and the portal goes back to the sign-in form.
 export const ADMIN_SIGNED_OUT_EVENT = 'aura:admin-signed-out';
 
-export async function adminApi(path, { method = 'GET', body } = {}) {
+// The app's own sign-in (Supabase), if this browser has one: { email, token } or null. Used for
+// signing in to the portal from the app (an app admin doesn't need a separate password).
+export async function appSession() {
+  try {
+    const { data: { session } } = await supabase.auth.getSession(); // refreshes the token if it's about to expire
+    return session ? { email: session.user.email, token: session.access_token } : null;
+  } catch {
+    return null;
+  }
+}
+
+// appToken: send the app's session as Authorization: Bearer (only POST /admin/session/app needs it).
+export async function adminApi(path, { method = 'GET', body, appToken } = {}) {
   let res;
   try {
     res = await fetch(`/api${path}`, {
       method,
       credentials: 'same-origin', // send and accept the session cookie (the default, spelled out)
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+      headers: {
+        ...(body !== undefined && { 'Content-Type': 'application/json' }),
+        ...(appToken && { Authorization: `Bearer ${appToken}` }),
+      },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {

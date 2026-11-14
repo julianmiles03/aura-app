@@ -115,9 +115,13 @@ export async function logIn(req, res, { email: rawEmail, password }) {
     throw new ApiError(401, 'ADMIN_LOGIN_FAILED', "That email and password don't match an admin account.");
   }
   failures.delete(email);
+  return { email: admin.user_email, expiresAt: await startSession(req, res, admin.id) };
+}
 
-  // One statement, so it all happens or none of it does: save the new session, note the sign-in
-  // time, and clear out sessions that have already expired (anyone's) so the table stays small.
+// Starts a session for an admin (after either kind of sign-in) and returns when it ends.
+// One statement, so it all happens or none of it does: save the new session, note the sign-in
+// time, and clear out sessions that have already expired (anyone's) so the table stays small.
+async function startSession(req, res, adminId) {
   const token = randomBytes(32).toString('base64url');
   const { rows: [session] } = await query(
     `WITH cleanup AS (DELETE FROM admin_sessions WHERE expires_at <= now()),
@@ -125,10 +129,34 @@ export async function logIn(req, res, { email: rawEmail, password }) {
      INSERT INTO admin_sessions (admin_user_id, token_hash, expires_at)
      VALUES ($1, $2, now() + make_interval(hours => $3))
      RETURNING expires_at`,
-    [admin.id, hashToken(token), SESSION_HOURS],
+    [adminId, hashToken(token), SESSION_HOURS],
   );
   res.cookie(COOKIE_NAME, token, { ...cookieOptions(req), maxAge: SESSION_HOURS * 60 * 60 * 1000 });
-  return { email: admin.user_email, expiresAt: session.expires_at };
+  return session.expires_at;
+}
+
+// Sign-in from the app (POST /api/admin/session/app). The route has already checked the app
+// session and that the person's users.is_admin is true; this gives them their admin login, by the
+// email they sign in to the app with, and starts a session on it. The first time, that login is
+// made for them, with a long random password that nobody is ever told, so it can't be used on the
+// sign-in form: it only works through the app (or after someone sets a real password for that email
+// with npm run db:admin-account). An admin login that already exists for the email is reused as is.
+export async function logInFromApp(req, res, { email: rawEmail }) {
+  const email = normalizeEmail(rawEmail);
+  let { rows: [admin] } = await query('SELECT id, user_email FROM admin_users WHERE user_email = $1', [email]);
+  let created = false;
+  if (!admin) {
+    const unusable = await hashPassword(randomBytes(32).toString('base64url'));
+    const { rows } = await query(
+      `INSERT INTO admin_users (user_email, user_password) VALUES ($1, $2)
+       ON CONFLICT (user_email) DO NOTHING RETURNING id, user_email`,
+      [email, unusable],
+    );
+    created = rows.length === 1;
+    // Two tabs at once: the other one made it first, so use that one.
+    admin = rows[0] ?? (await query('SELECT id, user_email FROM admin_users WHERE user_email = $1', [email])).rows[0];
+  }
+  return { email: admin.user_email, expiresAt: await startSession(req, res, admin.id), created };
 }
 
 // The admin signed in on this browser, or null. A cookie that no longer matches a live session
