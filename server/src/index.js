@@ -50,6 +50,10 @@ app.get('/api/health', async (req, res) => {
 });
 
 app.use('/api', publicRouter);
+// The admin portal has its own sign-in (httpOnly session cookie), so it goes before the app's
+// Supabase check. Its routes need an admin session (401 ADMIN_SIGNED_OUT), apart from login,
+// logout and session. See routes/admin.js and lib/adminAuth.js.
+app.use('/api', adminRouter);
 app.use('/api', authenticate); // everything below needs a Supabase session (401 otherwise)
 app.use('/api', accountRouter);
 app.use('/api', identify); // ...and a users row for that account (403 NO_PROFILE otherwise)
@@ -57,7 +61,6 @@ app.use('/api', meRouter);
 app.use('/api', groupsRouter);
 app.use('/api', matchingRouter);
 app.use('/api', chatsRouter);
-app.use('/api', adminRouter); // ...and users.is_admin (403 NOT_ADMIN otherwise)
 app.use('/api', (req) => {
   throw notFound('ROUTE_NOT_FOUND', `No API route for ${req.method} ${req.path}.`);
 });
