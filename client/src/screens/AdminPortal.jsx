@@ -6,20 +6,22 @@ import { Loader, LoadingStatus, Skeleton, Spinner } from '../components/Loading.
 import { Field, FormError, useAsyncAction, useToast } from '../components/ui.jsx';
 import { LoadError, useAdminData } from '../components/AdminCommon.jsx';
 import { GroupPage, GroupsPage } from './AdminGroups.jsx';
+import { UsersPage } from './AdminUsers.jsx';
 import { formatDay } from '../format.js';
 import { canRetry, friendlyError } from '../friendlyError.js';
 import dashboardShot from '../assets/admin-okr-dashboard.webp';
 
 // The admin portal. Signed out, #/admin (and every other admin page) is the landing page with the
-// sign-in form. Signed in: #/admin (home), #/admin/groups, #/admin/groups/:id (Maintain Groups, in
-// AdminGroups.jsx), #/admin/records, #/admin/tables/:name, #/admin/okrs.
+// sign-in form. Signed in: #/admin (home), #/admin/users (Maintain Users, in AdminUsers.jsx),
+// #/admin/groups, #/admin/groups/:id (Maintain Groups, in AdminGroups.jsx), #/admin/records,
+// #/admin/tables/:name, #/admin/okrs.
 //
 // It has its own sign-in, separate from the app's: an admin account (admin_users) and an httpOnly
 // session cookie (see adminApi.js and server/src/lib/adminAuth.js). Hiding the tools until sign-in
 // is for people; the real guard is the API, which answers 401 to any admin request without a session.
 
 const clock = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' });
-const pageTitle = (page) => ({ okrs: 'OKR Dashboard', records: 'Maintain Records', groups: 'Maintain Groups', group: 'Maintain Groups' })[page] ?? 'Admin portal';
+const pageTitle = (page) => ({ okrs: 'OKR Dashboard', records: 'Maintain Records', users: 'Maintain Users', groups: 'Maintain Groups', group: 'Maintain Groups' })[page] ?? 'Admin portal';
 
 export default function AdminPortal({ page, tableName, groupId }) {
   // undefined while we ask the API whether this browser has a session, then null or { email, expiresAt }.
@@ -97,6 +99,7 @@ export default function AdminPortal({ page, tableName, groupId }) {
   if (admin === undefined) body = <Loader label="Loading the admin portal…" />;
   else if (!admin) body = <AdminLanding notice={notice} onSignedIn={signedIn} />;
   else if (page === 'okrs') body = <OkrDashboard />;
+  else if (page === 'users') body = <UsersPage />;
   else if (page === 'groups') body = <GroupsPage />;
   else if (page === 'group') body = <GroupPage key={groupId} id={groupId} />;
   else if (page === 'records') body = <RecordsPage />;
@@ -133,7 +136,7 @@ export default function AdminPortal({ page, tableName, groupId }) {
 // Signed out: the landing page
 // ---------------------------------------------------------------------------
 const FEATURES = [
-  { icon: 'profile', title: 'Maintain users', text: 'Look through every aura profile: names, cities, bios and when each person joined.' },
+  { icon: 'profile', title: 'Maintain users', text: 'A table of every aura user, with add, edit and delete, and clear messages when something needs fixing.' },
   { icon: 'users', title: 'Maintain groups', text: 'Create, edit and delete friend groups and choose who is in them, up to 10 people each.' },
   { icon: 'archive', title: 'Maintain records', text: 'Open any table behind the app, from friend groups and matches to chats, messages and meetups.' },
   { icon: 'chart', title: 'OKR Dashboard', text: 'KR1-KR4 against our targets, counted from real activity in the app every time you look.' },
@@ -245,7 +248,7 @@ function AdminLoginForm({ notice, onSignedIn }) {
 // ---------------------------------------------------------------------------
 // These tool buttons, and the table list below them, only exist once you're signed in.
 const TOOLS = [
-  { title: 'Maintain Users', text: 'Every aura profile, newest first.', icon: 'profile', href: '#/admin/tables/users' },
+  { title: 'Maintain Users', text: 'Add, edit and delete aura users.', icon: 'profile', href: '#/admin/users' },
   { title: 'Maintain Groups', text: 'Create, edit and delete groups and their members.', icon: 'users', href: '#/admin/groups' },
   { title: 'Maintain Records', text: 'Groups, likes, matches, chats and every other table.', icon: 'archive', href: '#/admin/records' },
   { title: 'OKR Dashboard', text: 'KR1-KR4, live from real activity, against our targets.', icon: 'chart', href: '#/admin/okrs' },
@@ -297,7 +300,7 @@ function RecordsPage() {
       </div>
       <p className="admin-intro">
         Everything in aura's database apart from the users themselves (that's{' '}
-        <a href="#/admin/tables/users">Maintain Users</a>). Open a table to see its newest rows.
+        <a href="#/admin/users">Maintain Users</a>). Open a table to see its newest rows.
       </p>
       {error && !data
         ? <LoadError what="the tables" error={error} onRetry={reload} />
@@ -348,8 +351,13 @@ function TableList({ tables, withAbout = false }) {
 
 // One table's newest rows, read only. Values are shown the way an admin needs to read them:
 // timestamps as dates, empty values as "null", long text cut short (the full text is in the tooltip).
-// Rows in these tables are edited in Maintain Groups, so their table pages link there.
-const GROUP_TABLES = new Set(['friend_groups', 'group_memberships']);
+// Rows in these tables are edited with one of the Maintain tools, so their table pages link there.
+const GROUPS_TOOL = { tool: 'Maintain Groups', href: '#/admin/groups', what: 'groups and members' };
+const EDITED_IN = {
+  users: { tool: 'Maintain Users', href: '#/admin/users', what: 'users' },
+  friend_groups: GROUPS_TOOL,
+  group_memberships: GROUPS_TOOL,
+};
 const ISO_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 const stamp = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -372,7 +380,7 @@ function TablePage({ name }) {
     : <a href="#/admin/records" className="admin-back"><Icon name="chevronLeft" size={20} />Maintain Records</a>;
 
   useEffect(() => {
-    if (data) document.title = `${data.name === 'users' ? 'Maintain Users' : data.label} · Admin portal · aura`;
+    if (data) document.title = `${data.label} · Admin portal · aura`;
   }, [data]);
 
   if (error && !data) {
@@ -411,14 +419,14 @@ function TablePage({ name }) {
     <>
       {back}
       <div className="admin-table-head">
-        <h1 id="admin-title" className="page-title" tabIndex={-1}>{data.name === 'users' ? 'Maintain Users' : data.label}</h1>
+        <h1 id="admin-title" className="page-title" tabIndex={-1}>{data.label}</h1>
         <span className="admin-badge">View only</span>
       </div>
       <p className="admin-table-meta">
         {data.about} <strong>{plural(data.rowCount, 'row')}</strong> and {plural(data.columns.length, 'column')} in <code>{data.name}</code>
         {data.rowCount > shown ? `; these are the newest ${shown}.` : ', newest first.'}
-        {' '}{GROUP_TABLES.has(data.name)
-          ? <>To add, change or delete groups and members, use <a href="#/admin/groups">Maintain Groups</a>.</>
+        {' '}{EDITED_IN[data.name]
+          ? <>To add, change or delete {EDITED_IN[data.name].what}, use <a href={EDITED_IN[data.name].href}>{EDITED_IN[data.name].tool}</a>.</>
           : "To change a row, use the app or Supabase's Table Editor."}
       </p>
       {shown === 0 ? (

@@ -1,6 +1,6 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { adminApi } from '../adminApi.js';
-import { LoadError, useAdminData } from '../components/AdminCommon.jsx';
+import { ConfirmSheet, fullName, LoadError, plural, useAdminData } from '../components/AdminCommon.jsx';
 import Avatar from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
 import { Loader, LoadingStatus, Skeleton, Spinner } from '../components/Loading.jsx';
@@ -15,8 +15,6 @@ import { friendlyError } from '../friendlyError.js';
 // The API (server/src/routes/adminGroups.js) enforces every rule; the page only makes them visible:
 // it shows "7 of 10", turns "Add member" off at 10, and says why before something is deleted.
 
-const plural = (n, word, many = `${word}s`) => `${n.toLocaleString('en-US')} ${n === 1 ? word : many}`;
-const fullName = (p) => `${p.firstName} ${p.lastName}`;
 
 // "7 of 10" with a small bar. The bar is decoration; the words carry the meaning.
 function MemberMeter({ count, max }) {
@@ -120,13 +118,19 @@ export function GroupsPage() {
 function NewGroupSheet({ onClose }) {
   const [v, setV] = useState({ name: '', city: '' });
   const [owner, setOwner] = useState(null);
-  const { busy, error, setError, run } = useAsyncAction();
+  // "Choose who owns the group." shows in the Owner section itself: on a phone the sheet is scrolled
+  // down to the Create button, so a message at the top of the form would be out of sight.
+  const [ownerError, setOwnerError] = useState(null);
+  const ownerRef = useRef(null);
+  const ownerErrorId = useId();
+  const { busy, error, run } = useAsyncAction();
   const toast = useToast();
   const set = (k) => (e) => setV({ ...v, [k]: e.target.value });
   const submit = (e) => {
     e.preventDefault();
     if (!owner) {
-      setError(new Error('Choose who owns the group.'));
+      setOwnerError('Choose who owns the group.');
+      ownerRef.current?.querySelector('input')?.focus(); // focusing the search box scrolls it into view
       return;
     }
     run(async () => {
@@ -145,9 +149,10 @@ function NewGroupSheet({ onClose }) {
         <Field label="City">
           <input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo, UT" autoComplete="off" />
         </Field>
-        <fieldset className="admin-owner">
+        <fieldset className="admin-owner" ref={ownerRef} aria-describedby={ownerError ? ownerErrorId : undefined}>
           <legend className="field__label">Owner</legend>
           <p className="admin-owner__hint">The owner is the group's first member. You can add more people next.</p>
+          {ownerError && <p id={ownerErrorId} className="field__error admin-owner__error" role="alert">{ownerError}</p>}
           {owner ? (
             <div className="admin-person admin-person--chosen">
               <Avatar src={owner.photoUrl} personId={owner.id} color={owner.avatarColor} size={40} />
@@ -160,7 +165,7 @@ function NewGroupSheet({ onClose }) {
               </button>
             </div>
           ) : (
-            <UserPicker actionLabel="Choose" onPick={(person) => { setOwner(person); setError(null); }} />
+            <UserPicker actionLabel="Choose" onPick={(person) => { setOwner(person); setOwnerError(null); }} />
           )}
         </fieldset>
         <button className="btn btn--primary btn--block" disabled={busy}>
@@ -231,24 +236,6 @@ function UserPicker({ groupId, actionLabel, onPick, busyId = null, refreshKey = 
         </>
       )}
     </div>
-  );
-}
-
-// A yes/no question before something that can't be undone. Focus starts on Cancel.
-function ConfirmSheet({ title, children, confirmLabel, busyLabel, onConfirm, onClose }) {
-  const { busy, error, run } = useAsyncAction();
-  return (
-    <Sheet title={title} onClose={busy ? () => {} : onClose}>
-      <FormError error={error} />
-      <div className="admin-confirm__body">{children}</div>
-      <div className="admin-confirm__actions">
-        {/* autoFocus: a question that can't be undone starts on its safe answer. */}
-        <button type="button" className="btn btn--outline" onClick={onClose} disabled={busy} autoFocus>Cancel</button>
-        <button type="button" className="btn btn--danger-solid" onClick={() => run(onConfirm)} disabled={busy}>
-          {busy && <Spinner size={18} />}{busy ? busyLabel : confirmLabel}
-        </button>
-      </div>
-    </Sheet>
   );
 }
 

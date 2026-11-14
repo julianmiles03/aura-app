@@ -16,10 +16,10 @@ import { supabase } from './supabase.js';
 // Hash routes: #/find, #/messages, #/messages/:chatId, #/profile.
 // Signed out: #/signup (what a new visitor sees) and #/signin?next=/messages/7 (back to where you were).
 // Admin portal, with its own sign-in: #/admin, #/admin/okrs, #/admin/records, #/admin/tables/:name,
-// #/admin/groups and #/admin/groups/:id (Maintain Groups).
+// #/admin/users (Maintain Users), #/admin/groups and #/admin/groups/:id (Maintain Groups).
 function parseAdminRoute(path) {
   const [, , page, name] = path.split('/');
-  if (page === 'okrs' || page === 'records') return { tab: 'admin', adminPage: page };
+  if (page === 'okrs' || page === 'records' || page === 'users') return { tab: 'admin', adminPage: page };
   if (page === 'groups') {
     const groupId = Number(name);
     return Number.isSafeInteger(groupId) && groupId > 0
