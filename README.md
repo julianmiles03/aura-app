@@ -298,6 +298,8 @@ Run `npm run db:demo-accounts` again after any `db:reset`: a reset keeps the log
 
 The admin portal ([`/#/admin`](https://aura-is401.onrender.com/#/admin)) has its own landing page and its own sign-in, separate from the app's Supabase accounts. Signed out, every admin page shows the landing page: what the portal is for, a screenshot of the OKR Dashboard, and the **Admin sign in** form. The admin tools appear only after signing in.
 
+**Admin login for graders:** it's in our submission, not here. This repo is public, and an admin can read every table, chat messages included. Teammates: ask David for it, or make your own (see **Making an admin account** below).
+
 | Page | Signed out | Signed in |
 |---|---|---|
 | `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
