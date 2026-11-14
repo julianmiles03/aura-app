@@ -41,9 +41,16 @@ router.post('/groups', async (req, res) => {
 // Join with an invite code. The group_member_cap trigger rejects an 11th member (409 GROUP_FULL).
 router.post('/groups/join', async (req, res) => {
   await requireCompleteProfile(pool, req.user.id);
-  const code = readText(req.body.inviteCode, 'Invite code', { max: 12, required: true }).toUpperCase();
+  // Codes are letters and numbers; spaces and dashes people type or paste ("SUMMIT 77") are ignored.
+  const raw = typeof req.body.inviteCode === 'string' ? req.body.inviteCode.replace(/[\s-]/g, '') : req.body.inviteCode;
+  const code = readText(raw, 'Invite code', { required: true }).toUpperCase();
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) {
+    throw badRequest('INVALID_INVITE_CODE', 'Invite codes are 4 to 12 letters and numbers, like SUMMIT77. Check the code your friend sent.');
+  }
   const { rows: [group] } = await query('SELECT id, name FROM friend_groups WHERE invite_code = $1', [code]);
-  if (!group) throw notFound('INVITE_NOT_FOUND', `No group has the invite code ${code}.`);
+  if (!group) {
+    throw notFound('INVITE_NOT_FOUND', `No group has the invite code ${code}. Check it with your friend, or create your own group.`);
+  }
   const { rows: [membership] } = await query(
     'SELECT 1 FROM group_memberships WHERE group_id = $1 AND user_id = $2',
     [group.id, req.user.id],
@@ -92,12 +99,14 @@ router.get('/groups/:groupId/members/:userId/profile', async (req, res) => {
 router.patch('/groups/:id', async (req, res) => {
   const groupId = parseId(req.params.id, 'group id');
   await assertMember(pool, groupId, req.user.id);
+  // Name and city are both optional in the body, but can't be blanked when sent.
   const name = readText(req.body.name, 'Group name', { max: 60, required: 'name' in req.body });
+  const city = readText(req.body.city, 'City', { max: 80, required: 'city' in req.body });
   await query(
     `UPDATE friend_groups
-     SET name = coalesce($2, name)
+     SET name = coalesce($2, name), city = coalesce($3, city)
      WHERE id = $1`,
-    [groupId, name ?? null],
+    [groupId, name ?? null, city ?? null],
   );
   res.json({ group: await groupCard(groupId, { includeInviteCode: true }) });
 });
@@ -193,6 +202,15 @@ router.delete('/groups/:id/members/me', async (req, res) => {
          SELECT group_id FROM group_memberships WHERE user_id = $1 ORDER BY joined_at LIMIT 1)
        WHERE id = $1 AND active_group_id IS NULL`,
       [req.user.id],
+    );
+    // The owner left: the longest-standing member becomes the owner, so someone can still
+    // remove members and change the group photo.
+    await client.query(
+      `UPDATE group_memberships SET role = 'owner'
+       WHERE group_id = $1
+         AND NOT EXISTS (SELECT 1 FROM group_memberships WHERE group_id = $1 AND role = 'owner')
+         AND user_id = (SELECT user_id FROM group_memberships WHERE group_id = $1 ORDER BY joined_at, user_id LIMIT 1)`,
+      [groupId],
     );
     await client.query(
       'DELETE FROM friend_groups g WHERE g.id = $1 AND NOT EXISTS (SELECT 1 FROM group_memberships WHERE group_id = g.id)',

@@ -879,7 +879,8 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 }
 .sheet__grip { width: 44px; height: 5px; border-radius: 99px; background: var(--line); margin: 4px auto 10px; }
 .sheet__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.sheet__head h2 { font-size: 24px; font-weight: 800; }
+.sheet__head { gap: 8px; }
+.sheet__head h2 { font-size: 24px; font-weight: 800; min-width: 0; overflow-wrap: anywhere; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { transform: translateY(40px); opacity: 0; } }
 
@@ -895,6 +896,13 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 }
 .field textarea { min-height: 96px; resize: vertical; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); outline: none; }
+.field input[aria-invalid='true'] { border-color: var(--danger); }
+/* Under a text field: its error or hint on the left, "12/60" on the right */
+.field__foot { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; font-size: 14px; color: var(--muted); }
+.field__foot:empty { display: none; }
+.field__error { color: var(--danger); font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.field__hint { min-width: 0; }
+.field__count { margin-left: auto; flex: none; font-variant-numeric: tabular-nums; }
 .field-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
 .field input[type='datetime-local'] { font-size: 15px; padding: 10px; }
 .form-error {
@@ -924,7 +932,24 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .invite-code__actions { flex: 1 1 100%; min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
 .invite-code__actions .btn { min-width: 0; width: 100%; }
 .person-row { display: flex; align-items: center; gap: 12px; padding: 8px 0; }
-.person-row__name { flex: 1; font-weight: 600; }
+.person-row__name { flex: 1; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.person-row .badge, .person-row .btn { flex: none; }
+.manage-group > form { margin-bottom: 22px; }
+.manage-group section { margin-top: 22px; }
+.manage-group__leave { margin-top: 22px; }
+.group-full {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--warm-soft);
+  color: var(--warm-ink);
+  overflow-wrap: anywhere;
+}
+.group-full svg { flex: none; margin-top: 2px; }
+.group-full span { min-width: 0; }
 .btn--danger-outline { border: 1px solid #f2b8b5; color: var(--danger); background: transparent; }
 .auth-cancel { margin-top: 10px; }
 .member-profile__main { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 20px; background: var(--accent-soft); margin-bottom: 14px; }

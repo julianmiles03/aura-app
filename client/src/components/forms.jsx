@@ -132,36 +132,100 @@ export function AddInterestForm({ current, onAdd }) {
 }
 
 // Create a new group or join one with an invite code.
+export const GROUP_NAME_MAX = 60;
+export const GROUP_CITY_MAX = 80;
+
+// What people type or paste as an invite: the code ("summit 77") or the whole invite link
+// (".../#/join?code=SUMMIT77"). Returns just the code, upper case, without spaces or dashes.
+export function readInviteCode(text) {
+  const fromLink = text.match(/[?&]code=([^&#\s]+)/i);
+  const raw = fromLink ? decodeURIComponent(fromLink[1]) : text;
+  return raw.replace(/[\s-]/g, '').toUpperCase();
+}
+
+// A text input with its own label, a live "12/60" count and an error under it.
+function TextField({ id, label, value, onChange, max, error, placeholder, hint }) {
+  const describedBy = [hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ') || undefined;
+  return (
+    <div className="field">
+      <label className="field__label" htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        maxLength={max}
+        placeholder={placeholder}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={describedBy}
+      />
+      <div className="field__foot">
+        {error ? <span id={`${id}-error`} className="field__error">{error}</span> : hint && <span id={`${id}-hint`} className="field__hint">{hint}</span>}
+        {max && <span className="field__count" aria-hidden="true">{value.length}/{max}</span>}
+      </div>
+    </div>
+  );
+}
+
+// Create a new group or join one with an invite code.
 export function CreateOrJoinForm({ onDone, defaultTab = 'create', defaultInviteCode = '', joinOnly = false }) {
   const [tab, setTab] = useState(defaultTab);
   const [name, setName] = useState('');
-  const [code, setCode] = useState(defaultInviteCode);
+  const [code, setCode] = useState(() => readInviteCode(defaultInviteCode));
+  const [fieldError, setFieldError] = useState(null);
   const { busy, error, setError, run } = useAsyncAction();
   const submit = (e) => {
     e.preventDefault();
+    // Checked here first so the message sits under the field; the server checks the same things.
+    const invalid = tab === 'create'
+      ? !name.trim() && 'Give your group a name.'
+      : !code ? 'Enter the invite code your friend sent you.'
+        : !/^[A-Z0-9]{4,12}$/.test(code) && 'Invite codes are 4 to 12 letters and numbers, like SUMMIT77.';
+    setFieldError(invalid || null);
+    if (invalid) return;
     run(async () => {
       const res = tab === 'create'
-        ? await api('/groups', { method: 'POST', body: { name } })
+        ? await api('/groups', { method: 'POST', body: { name: name.trim() } })
         : await api('/groups/join', { method: 'POST', body: { inviteCode: code } });
       await onDone(res.group, tab);
     });
   };
+  const switchTab = (t) => {
+    setTab(t);
+    setError(null);
+    setFieldError(null);
+  };
+  // A wrong or unknown code is about the field, so show it there too.
+  const codeError = fieldError ?? (['INVITE_NOT_FOUND', 'INVALID_INVITE_CODE'].includes(error?.code) ? error.message : null);
   return (
-    <form onSubmit={submit}>
+    <form onSubmit={submit} noValidate>
       {!joinOnly && <div className="tabs" role="tablist">
         {['create', 'join'].map((t) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => { setTab(t); setError(null); }}>
+          <button key={t} type="button" role="tab" aria-selected={tab === t} onClick={() => switchTab(t)}>
             {t === 'create' ? 'Create a group' : 'Join with code'}
           </button>
         ))}
       </div>}
-      <FormError error={error} />
+      {codeError && tab === 'join' ? <p className="sr-only" role="alert">{codeError}</p> : <FormError error={error} />}
       {tab === 'create' ? (
-        <Field label="Group name"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required placeholder="e.g. Tuesday Crew" /></Field>
+        <TextField
+          id="new-group-name"
+          label="Group name"
+          value={name}
+          onChange={(v) => { setName(v); setFieldError(null); }}
+          max={GROUP_NAME_MAX}
+          error={fieldError}
+          placeholder="e.g. Tuesday Crew"
+        />
       ) : (
-        <Field label="Invite code">
-          <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={12} required placeholder="e.g. SUMMIT77" autoCapitalize="characters" />
-        </Field>
+        <TextField
+          id="invite-code"
+          label="Invite code"
+          value={code}
+          onChange={(v) => { setCode(readInviteCode(v)); setFieldError(null); setError(null); }}
+          error={codeError}
+          placeholder="e.g. SUMMIT77"
+          hint="Ask a friend in the group for its code, or paste their invite link."
+        />
       )}
       <button className="btn btn--primary btn--block" disabled={busy}>
         {busy ? 'One sec…' : tab === 'create' ? 'Create group' : 'Join group'}
@@ -170,10 +234,14 @@ export function CreateOrJoinForm({ onDone, defaultTab = 'create', defaultInviteC
   );
 }
 
-export function InviteFriends({ group, onChanged }) {
+export function InviteFriends({ group: initialGroup, onChanged }) {
+  // Kept here so "n of 10" and the full notice update as you add people.
+  const [group, setGroup] = useState(initialGroup);
+  useEffect(() => setGroup(initialGroup), [initialGroup]);
   const [friends, setFriends] = useState(null);
   const [copied, setCopied] = useState(false);
   const { busy, error, run } = useAsyncAction();
+  const full = group.memberCount >= (group.maxMembers ?? 10);
   useEffect(() => {
     api('/me/friends').then((d) => setFriends(d.friends)).catch(() => setFriends([]));
   }, []);
@@ -197,11 +265,18 @@ export function InviteFriends({ group, onChanged }) {
   const add = (friend) => run(async () => {
     const res = await api(`/groups/${group.id}/members`, { method: 'POST', body: { userId: friend.id } });
     setFriends((fs) => fs.map((f) => (f.id === friend.id ? { ...f, groupIds: [...f.groupIds, group.id] } : f)));
+    setGroup((g) => ({ ...g, ...res.group }));
     await onChanged(res.group);
   });
   return (
     <div>
       <p className="subtle" style={{ marginTop: 0 }}>Share this link or code. Friends can open the link to join directly.</p>
+      {full && (
+        <p className="group-full" role="status">
+          <Icon name="users" size={18} />
+          <span><strong>{group.name}</strong> is full (10 of 10). A group can have at most 10 members, so remove someone before adding anyone new.</span>
+        </p>
+      )}
       <div className="invite-code">
         <span className="invite-code__value">{group.inviteCode}</span>
         <div className="invite-code__actions">
@@ -218,7 +293,9 @@ export function InviteFriends({ group, onChanged }) {
       {friends === null && <Loader label="Loading friends…" compact />}
       {friends?.length === 0 && <p className="muted-small">No friends yet.</p>}
       {friends?.map((f) => {
-        const inGroup = f.groupIds.includes(group.id);
+        // The group's own member list is current (someone may have just been removed); the friends
+        // list is from when this opened.
+        const inGroup = group.members ? group.members.some((m) => m.id === f.id) : f.groupIds.includes(group.id);
         return (
           <div key={f.id} className="person-row">
             <Avatar initials={f.initials} color={f.avatarColor} size={40} src={f.photoUrl} personId={f.id} />
@@ -226,7 +303,15 @@ export function InviteFriends({ group, onChanged }) {
             {inGroup ? (
               <span className="muted-small">In group</span>
             ) : (
-              <button type="button" className="btn btn--sm btn--soft" disabled={busy} onClick={() => add(f)}>Add</button>
+              <button
+                type="button"
+                className="btn btn--sm btn--soft"
+                disabled={busy || full}
+                aria-label={`Add ${f.firstName} ${f.lastName}`}
+                onClick={() => add(f)}
+              >
+                Add
+              </button>
             )}
           </div>
         );
@@ -235,53 +320,115 @@ export function InviteFriends({ group, onChanged }) {
   );
 }
 
-export function ManageGroupForm({ group, onSaved, onLeft, onPhotoChanged }) {
+// Manage group: details (name, city), group photo, members (remove, add), leave.
+// Details save with "Save changes"; everything else saves as you do it and keeps the sheet open
+// (onChanged refreshes the rest of the app).
+export function ManageGroupForm({ group, myId, onSaved, onLeft, onChanged }) {
   const [name, setName] = useState(group.name);
+  const [city, setCity] = useState(group.city ?? '');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [currentGroup, setCurrentGroup] = useState(group);
-  const { busy, error, run } = useAsyncAction();
+  const details = useAsyncAction();
+  const members = useAsyncAction();
+  const isOwner = group.role === 'owner';
+  const max = currentGroup.maxMembers ?? 10;
+
+  const update = async (updated) => {
+    setCurrentGroup((g) => ({ ...g, ...updated }));
+    await onChanged?.();
+  };
   const save = (e) => {
     e.preventDefault();
-    run(async () => onSaved((await api(`/groups/${group.id}`, { method: 'PATCH', body: { name } })).group));
+    const errors = {};
+    if (!name.trim()) errors.name = "Group name can't be empty.";
+    if (!city.trim()) errors.city = "City can't be empty.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) {
+      document.getElementById(errors.name ? 'group-name' : 'group-city')?.focus();
+      return;
+    }
+    details.run(async () => onSaved((await api(`/groups/${group.id}`, { method: 'PATCH', body: { name: name.trim(), city: city.trim() } })).group));
   };
   const leave = () => {
-    if (!window.confirm(`Leave ${group.name}?`)) return;
-    run(async () => {
+    // The server hands the group to its longest-standing member when the owner leaves.
+    const nextOwner = isOwner && currentGroup.members.find((m) => m.id !== myId);
+    const lastOne = currentGroup.memberCount <= 1;
+    const message = lastOne
+      ? `Leave ${currentGroup.name}? You're its only member, so the group will be deleted.`
+      : `Leave ${currentGroup.name}?${nextOwner ? ` ${nextOwner.firstName} ${nextOwner.lastName} will become the owner.` : ''}`;
+    if (!window.confirm(message)) return;
+    members.run(async () => {
       await api(`/groups/${group.id}/members/me`, { method: 'DELETE' });
       await onLeft();
     });
   };
   const remove = (member) => {
     if (!window.confirm(`Remove ${member.firstName} ${member.lastName} from ${currentGroup.name}?`)) return;
-    run(async () => {
+    members.run(async () => {
       const updated = await api(`/groups/${currentGroup.id}/members/${member.id}`, { method: 'DELETE' });
-      setCurrentGroup(updated.group);
-      await onSaved(updated.group);
+      await update(updated.group);
     });
   };
+
   return (
-    <form onSubmit={save}>
-      <FormError error={error} />
-      <Field label="Group name"><input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} required /></Field>
-      <GroupPhotoField
-        group={currentGroup}
-        canEdit={group.role === 'owner'}
-        onChanged={async (updated) => { setCurrentGroup(updated); await onPhotoChanged?.(); }}
-      />
-      <h3 className="section-label">Members · {group.memberCount} of 10</h3>
-      {currentGroup.members.map((m) => (
-        <div key={m.id} className="person-row">
-          <Avatar initials={m.initials} color={m.avatarColor} size={40} src={m.photoUrl} personId={m.id} />
-          <span className="person-row__name">{m.firstName} {m.lastName}</span>
-          {m.role === 'owner' && <span className="badge">Owner</span>}
-          {group.role === 'owner' && m.role !== 'owner' && (
-            <button type="button" className="btn btn--sm btn--danger-outline" disabled={busy} onClick={() => remove(m)}>Remove</button>
-          )}
-        </div>
-      ))}
-      <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
-        <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
-        <button type="button" className="btn btn--danger btn--block" disabled={busy} onClick={leave}>Leave group</button>
-      </div>
-    </form>
+    <div className="manage-group">
+      <form onSubmit={save} noValidate>
+        <FormError error={details.error} />
+        <TextField
+          id="group-name"
+          label="Group name"
+          value={name}
+          onChange={(v) => { setName(v); setFieldErrors((f) => ({ ...f, name: null })); }}
+          max={GROUP_NAME_MAX}
+          error={fieldErrors.name}
+        />
+        <TextField
+          id="group-city"
+          label="City"
+          value={city}
+          onChange={(v) => { setCity(v); setFieldErrors((f) => ({ ...f, city: null })); }}
+          max={GROUP_CITY_MAX}
+          error={fieldErrors.city}
+          placeholder="e.g. Provo, UT"
+          hint="Find shows groups in the same city first."
+        />
+        <button className="btn btn--primary btn--block" disabled={details.busy}>{details.busy ? 'Saving…' : 'Save changes'}</button>
+      </form>
+
+      <GroupPhotoField group={currentGroup} canEdit={isOwner} onChanged={update} />
+
+      <section aria-labelledby="manage-members">
+        <h3 id="manage-members" className="section-label">Members · {currentGroup.memberCount} of {max}</h3>
+        <FormError error={members.error} />
+        {currentGroup.members.map((m) => (
+          <div key={m.id} className="person-row">
+            <Avatar initials={m.initials} color={m.avatarColor} size={40} src={m.photoUrl} personId={m.id} />
+            <span className="person-row__name">{m.firstName} {m.lastName}{m.id === myId && <span className="muted-small"> (you)</span>}</span>
+            {m.role === 'owner' && <span className="badge">Owner</span>}
+            {isOwner && m.role !== 'owner' && (
+              <button
+                type="button"
+                className="btn btn--sm btn--danger-outline"
+                disabled={members.busy}
+                aria-label={`Remove ${m.firstName} ${m.lastName}`}
+                onClick={() => remove(m)}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+        {!isOwner && <p className="muted-small">Only the group's owner can remove members.</p>}
+      </section>
+
+      <section aria-labelledby="manage-add">
+        <h3 id="manage-add" className="section-label">Add members</h3>
+        <InviteFriends group={currentGroup} onChanged={update} />
+      </section>
+
+      <button type="button" className="btn btn--danger btn--block manage-group__leave" disabled={members.busy} onClick={leave}>
+        Leave group
+      </button>
+    </div>
   );
 }

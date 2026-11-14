@@ -5,6 +5,8 @@ const FRIENDLY = {
   INTERNAL_ERROR: 'Something went wrong on our end. Try again in a moment.',
   UNKNOWN_ERROR: 'Something went wrong. Try again in a moment.',
   GROUP_FULL: 'That group already has 10 members, so no one else can join.',
+  PROFILE_INCOMPLETE: 'Finish your profile first (photo, interest and the About you details), then create or join a group.',
+  ALREADY_MEMBER: "They're already in this group.",
   CHAT_FULL: 'This chat already has 30 people, the most a chat can have.',
   NOT_ACTIVE_GROUP: 'Switch to that group first, then try again.',
   NOT_IN_CHAT: "You're not in this chat anymore.",
