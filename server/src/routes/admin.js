@@ -1,11 +1,13 @@
 // Routes for the admin portal (#/admin). They use the portal's own sign-in (an httpOnly session
 // cookie, see lib/adminAuth.js), not the app's Supabase session, so index.js mounts this router
-// before the app's `authenticate`. Login, logout and session are open to anyone; every other
-// /api/admin route answers 401 ADMIN_SIGNED_OUT without a valid admin session.
+// before the app's `authenticate`. Login, logout and session are open to anyone (sign-in from the
+// app needs the app's session instead); every other /api/admin route answers 401 ADMIN_SIGNED_OUT
+// without a valid admin session.
 import { Router } from 'express';
 import { pool, query } from '../db.js';
-import { notFound } from '../errors.js';
-import { currentAdmin, logIn, logOut, requireAdminSession } from '../lib/adminAuth.js';
+import { badRequest, forbidden, notFound } from '../errors.js';
+import { currentAdmin, logIn, logInFromApp, logOut, requireAdminSession } from '../lib/adminAuth.js';
+import { authenticate, identify } from '../middleware/auth.js';
 import adminGroupsRouter from './adminGroups.js';
 import adminInterestsRouter from './adminInterests.js';
 import adminMeetupsRouter from './adminMeetups.js';
@@ -21,6 +23,20 @@ const router = Router();
 router.post('/admin/login', async (req, res) => {
   const admin = await logIn(req, res, { email: req.body.user_email, password: req.body.user_password });
   res.json({ admin });
+});
+
+// Sign-in from the app, with no password: for app users marked admin (users.is_admin, the same
+// people the app shows an "Admin portal" link). It needs the app's own session, checked exactly like
+// every app route (Authorization: Bearer, then their users row). Anyone else gets 403 NOT_ADMIN.
+// Their admin login is made the first time (lib/adminAuth.js logInFromApp); 200 sets the cookie.
+router.post('/admin/session/app', authenticate, identify, async (req, res) => {
+  const { rows: [me] } = await query('SELECT is_admin FROM users WHERE id = $1', [req.user.id]);
+  if (!me?.is_admin) {
+    throw forbidden('NOT_ADMIN', "Your aura account isn't an admin. Sign in with an admin email and password instead.");
+  }
+  if (!req.auth.email) throw badRequest('NO_EMAIL', 'Your aura account has no email, so it needs an admin email and password.');
+  const { email, expiresAt } = await logInFromApp(req, res, { email: req.auth.email });
+  res.json({ admin: { email, expiresAt } });
 });
 
 // Always 204, even if there was no session, so the portal can always show the signed-out page.

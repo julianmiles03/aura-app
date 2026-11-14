@@ -17,6 +17,7 @@
     "verify:suggestions": "node scripts/verify-suggestions.js",
     "verify:messages": "node scripts/verify-messages.js",
     "verify:admin": "node scripts/verify-admin.js",
+    "verify:admin-app-login": "node scripts/verify-admin-app-login.js",
     "verify:admin-groups": "node scripts/verify-admin-groups.js",
     "verify:admin-users": "node scripts/verify-admin-users.js",
     "verify:admin-interests": "node scripts/verify-admin-interests.js",
