@@ -1169,7 +1169,7 @@ a.admin-tile:hover { border-color: var(--accent); }
 .admin-table { min-width: 100%; border-collapse: collapse; font-size: 14px; }
 .admin-table th, .admin-table td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
 .admin-table th { background: #faf9fd; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; font-weight: 600; }
-.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-table tbody tr:last-child td, .admin-table tbody tr:last-child th { border-bottom: 0; }
 .admin-table tbody tr:hover td { background: #faf9fd; }
 /* Long values (bios, photo URLs) end in an ellipsis; the full text is in the tooltip and read out in full. */
 .admin-cell { display: block; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; }
@@ -1250,26 +1250,30 @@ a.admin-group-row:hover { border-color: var(--accent); }
 .admin-confirm__actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .admin-confirm__actions .btn { min-width: 0; white-space: normal; }
 
-/* Maintain Users (#/admin/users): a real table. On phones only Name, Groups and the buttons show
-   (the city moves under the name), so it fits without scrolling sideways. */
-.admin-users .admin-table th, .admin-users .admin-table td { vertical-align: middle; }
+/* Maintain Users / Interests / Meetups: real tables. On phones only the main columns and the buttons
+   show (the rest moves under the name, admin-crud__sub), so they fit without scrolling sideways. */
+.admin-crud .admin-table th, .admin-crud .admin-table td { vertical-align: middle; }
 /* The name cell is the row's header (th scope="row"), styled like the other cells, not like a column header. */
-.admin-users .admin-table .admin-users__rowhead { font-family: var(--font-body); font-size: 15px; font-weight: 700; color: var(--ink); background: none; white-space: normal; }
-.admin-users__person { display: flex; align-items: center; gap: 10px; }
-.admin-users__name { display: grid; min-width: 0; overflow-wrap: anywhere; }
-.admin-users__sub { color: var(--muted); font-size: 13px; font-weight: 500; }
-.admin-users__wide { display: none; }
-.admin-users__actions { white-space: nowrap; text-align: right !important; }
+.admin-crud .admin-table .admin-crud__rowhead { font-family: var(--font-body); font-size: 15px; font-weight: 700; color: var(--ink); background: none; white-space: normal; }
+.admin-crud__person { display: flex; align-items: center; gap: 10px; }
+.admin-crud__name { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.admin-crud__sub { color: var(--muted); font-size: 13px; font-weight: 500; }
+.admin-crud__wide { display: none; }
+.admin-crud__actions { white-space: nowrap; text-align: right !important; }
 /* Groups and the buttons take only the room they need, so names get the rest. */
-.admin-users__narrow, .admin-users__actions { width: 1%; white-space: nowrap; }
-.admin-users tbody tr:hover .admin-users__rowhead { background: #faf9fd; }
-.admin-users__actions .btn { min-width: 44px; padding: 0 10px; }
-.admin-users__actions .btn + .btn { margin-left: 6px; }
-.admin-users__btn-text { display: none; }
+.admin-crud__narrow, .admin-crud__actions { width: 1%; white-space: nowrap; }
+.admin-crud tbody tr:hover .admin-crud__rowhead { background: #faf9fd; }
+.admin-crud__actions .btn { min-width: 44px; padding: 0 10px; }
+.admin-crud__actions .btn + .btn { margin-left: 6px; }
+.admin-crud__btn-text { display: none; }
 .admin-form-note { margin: -4px 0 14px; color: var(--muted); font-size: 14px; }
 .admin-consequences { margin: 0 0 16px; padding-left: 20px; color: var(--muted); }
 .admin-consequences li { margin-bottom: 6px; overflow-wrap: anywhere; }
 .admin-consequences strong { color: var(--ink); }
+/* Maintain Meetups: the two groups' avatars side by side */
+.admin-pair { display: inline-flex; flex: none; }
+.admin-pair > * + * { margin-left: -8px; box-shadow: 0 0 0 2px var(--card); }
+.admin-form-match { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; overflow-wrap: anywhere; }
 
 .admin-back { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; margin-top: 6px; color: var(--accent-ink); font-weight: 700; text-decoration: none; }
 .okr-head { padding-top: 2px; flex-wrap: wrap; }
@@ -1484,8 +1488,8 @@ a.admin-group-row:hover { border-color: var(--accent); }
   .admin-table-list--about { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-cell { max-width: 40ch; }
 
-  /* Four tools on the home page; four features on the landing page. */
-  .admin-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* Six tools on the home page, three across; four features on the landing page. */
+  .admin-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .admin-features { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 
   /* Maintain Groups: two columns of groups; on a group, details and delete beside the members. */
@@ -1502,10 +1506,10 @@ a.admin-group-row:hover { border-color: var(--accent); }
   .admin-card--danger { grid-area: danger; }
   .admin-card { padding: 24px; }
 
-  /* Maintain Users: every column, and the buttons say Edit / Delete. */
-  .admin-users__wide { display: table-cell; }
-  .admin-users__sub { display: none; }
-  .admin-users__btn-text { display: inline; }
-  .admin-users__actions .btn { padding: 0 14px; }
+  /* Maintain Users / Interests / Meetups: every column, and the buttons say Edit / Delete. */
+  .admin-crud__wide { display: table-cell; }
+  .admin-crud__sub { display: none; }
+  .admin-crud__btn-text { display: inline; }
+  .admin-crud__actions .btn { padding: 0 14px; }
   .admin-group-head .page-title { font-size: 44px; }
 }

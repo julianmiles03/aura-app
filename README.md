@@ -31,7 +31,7 @@ From our Product Requirements Document.
 
 ## Vertical Slices
 
-Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 21.**
+Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 23.**
 
 | # | Slice | What the user does | API | Database |
 |---|---|---|---|---|
@@ -56,8 +56,10 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 19 | Admin portal sign-in and Maintain | Open **`#/admin`**: a landing page with the **Admin sign in** form. Signing in shows **Maintain Users**, **Maintain Records** and a **Maintain** button for every table (view its rows); **Log out** hides them again | `POST /api/admin/login`, `GET /api/admin/session`, `GET /api/admin/tables`, `GET /api/admin/tables/:name`, `POST /api/admin/logout`; admin data routes answer `401` without the session cookie | `admin_users` (bcrypt hash), `admin_sessions` (hashed token), every app table (read only) |
 | 20 | Maintain Groups | Signed in to the admin portal: **Maintain Groups** → search the groups, **New group** (name, city, owner), open one to edit its name and city, **Add member** (up to 10; at 10 it's turned off), **Make owner**, **Remove**, **Delete group** | `GET`/`POST /api/admin/groups`, `GET`/`PATCH`/`DELETE /api/admin/groups/:id`, `POST /api/admin/groups/:id/members`, `PATCH`/`DELETE /api/admin/groups/:id/members/:userId`, `GET /api/admin/users`; an 11th member gets `409 GROUP_FULL` | `friend_groups`, `group_memberships` (`group_member_cap` trigger), `chat_participants`, `users.active_group_id` |
 | 21 | Maintain Users | Signed in to the admin portal: **Maintain Users** → a table of every user, search, **Add user**, **Edit**, **Delete** (it says first what happens to their groups); each mistake is named under its field | `GET`/`POST /api/admin/users`, `GET`/`PATCH`/`DELETE /api/admin/users/:id`; bad input gets `400 VALIDATION_ERROR` with `details.fields` | `users` (and, on delete, `group_memberships`, `chat_participants`, `user_photos`, `group_likes`) |
+| 22 | Maintain Interests | Signed in to the admin portal: **Maintain Interests** → a table of every interest with how many people and groups have it, search, **Add interest**, **Rename**, **Delete** (it says first whose profiles it comes off) | `GET`/`POST /api/admin/interests`, `PATCH`/`DELETE /api/admin/interests/:id`; a name that exists in any capitalization gets `409 INTEREST_EXISTS` | `interests` (and `user_interests`, the `group_shared_interests` view) |
+| 23 | Maintain Meetups | Signed in to the admin portal: **Maintain Meetups** → a table of every "We met up!", **Add meetup** (match, day, who confirmed), **Edit**, **Delete** | `GET`/`POST /api/admin/meetups`, `GET /api/admin/meetups/matches`, `GET`/`PATCH`/`DELETE /api/admin/meetups/:id`; a second meetup for a match gets `409 MEETUP_EXISTS` | `meetups` (feeds KR4 in `okr_metrics`) |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), slice 20 in [Maintain Groups](#maintain-groups), and slice 21 in [Maintain Users](#maintain-users).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), slice 20 in [Maintain Groups](#maintain-groups), slice 21 in [Maintain Users](#maintain-users), and slices 22 and 23 in [Maintain Interests and Meetups](#maintain-interests-and-meetups).
 
 ### Sprint 2 JW verification
 
@@ -69,7 +71,7 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 
 - **Customer app:** users use the React website, which sends requests to our Express server. The server saves and loads data in Supabase, which also handles logins. Both run live on Render.
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
-- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Users adds, edits and deletes users (see [Maintain Users](#maintain-users)), Maintain Groups does the same for friend groups and their members (see [Maintain Groups](#maintain-groups)), Maintain Records shows each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
+- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Users adds, edits and deletes users (see [Maintain Users](#maintain-users)), Maintain Groups does the same for friend groups and their members (see [Maintain Groups](#maintain-groups)), Maintain Interests and Maintain Meetups for those two tables (see [Maintain Interests and Meetups](#maintain-interests-and-meetups)), Maintain Records shows each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
 
 ## Data Flow Diagrams
 
@@ -304,14 +306,15 @@ The admin portal ([`/#/admin`](https://aura-is401.onrender.com/#/admin)) has its
 
 | Page | Signed out | Signed in |
 |---|---|---|
-| `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Groups**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
+| `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Groups**, **Maintain Interests**, **Maintain Meetups**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
 | `#/admin/users` | Landing page and form | [Maintain Users](#maintain-users): the table of users, with add, edit and delete |
 | `#/admin/groups`, `#/admin/groups/<id>` | Landing page and form | [Maintain Groups](#maintain-groups): every group, or one group to edit |
+| `#/admin/interests`, `#/admin/meetups` | Landing page and form | [Maintain Interests and Meetups](#maintain-interests-and-meetups): each table, with create, edit and delete |
 | `#/admin/records` | Landing page and form; after signing in you're on this page | Every table except users, each with its own **Maintain** button |
 | `#/admin/tables/<name>` | Landing page and form | That table's row count and newest 50 rows, view only |
 | `#/admin/okrs` | Landing page and form | The [OKR Dashboard](#okr-dashboard) |
 
-- The per-table **Maintain** pages are view only. On phones the table scrolls sideways inside its box. Users, groups and memberships are edited in [Maintain Users](#maintain-users) and [Maintain Groups](#maintain-groups), and those tables' pages link there; other rows change through the app or Supabase's Table Editor.
+- The per-table **Maintain** pages are view only. On phones the table scrolls sideways inside its box. Users, groups, memberships, interests and meetups are edited in their own Maintain tools, and those tables' pages link there; other rows change through the app or Supabase's Table Editor.
 - **Log out** ends the session and clears the cookie, and the portal goes back to the landing page with the tools hidden. Opening an admin link after that shows the sign-in form again.
 
 **How sign-in works** ([`server/src/lib/adminAuth.js`](server/src/lib/adminAuth.js), [`server/src/routes/admin.js`](server/src/routes/admin.js))
@@ -370,6 +373,39 @@ In the admin portal, **Maintain Users** (`#/admin/users`) is a table of every au
 **Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set, `npm run verify:admin-users` runs 28 checks against the API and the database: `401` without a session, each validation problem named at once with nothing saved, add / list / search / edit (and edit's checks), `404`s, and deleting someone who owns two groups (ownership passes on in one, the other is deleted). It adds two test people and two test groups and briefly puts one existing user in a test group, then deletes all of it, so ask the team before running it on the shared database.
 
 **Phone and desktop.** Lighthouse Accessibility is 100 on phone and desktop for the table, the Add form showing its errors, the Edit form and the Delete question.
+
+## Maintain Interests and Meetups
+
+Two more tools in the admin portal, each with its own button on the admin home (shown only after signing in): **Maintain Interests** (`#/admin/interests`) and **Maintain Meetups** (`#/admin/meetups`). Both are tables with create, edit and delete. Their API routes answer `401 ADMIN_SIGNED_OUT` without an admin session.
+
+**Maintain Interests**
+- **The table:** every interest A to Z, how many people picked it and how many groups show it (a group's interests are its members'). **Search** by name. On phones the group count moves under the name.
+- **Add interest** and **Rename:** one field, 1 to 40 characters. Names are unique in any capitalization, like the database's index: "hiking" when "Hiking" exists gets "There's already an interest called “Hiking”." under the field (`409 INTEREST_EXISTS`). Renaming only the capitalization is fine. A rename shows up on every profile and group card at once.
+- **Delete** says first how many people's profiles it comes off and how many groups stop showing it. If it was someone's only interest, the confirm says the app will ask them to add one (a profile needs at least one). The database removes it from everyone (`user_interests` cascades).
+
+**Maintain Meetups**
+- **The table:** every meetup, newest first: the two groups, the day they met, and who confirmed it (or "Not recorded"). On phones the day and the confirmer move under the groups.
+- **Add meetup:** pick the match (only matches without a meetup are listed), the day, and optionally who confirmed it (someone in that match's chat). **Edit** changes the day and the confirmer. The match stays; to move a meetup, delete it and add one for the other match.
+- **The rules are the app's** ("We met up!", `POST /api/chats/:id/meetup`). One meetup per match: the match row is locked while checking, so two admins adding one at the same moment can't both succeed (`409 MEETUP_EXISTS`). The day can't be in the future or before the two groups matched. The day is saved at noon UTC, so both groups' chats show the day that was picked. Every problem is named under its field (`400 VALIDATION_ERROR` with `details.fields`).
+- **KR4:** meetups are what KR4 counts, so adding or deleting one moves the [OKR Dashboard](#okr-dashboard). Deleting also brings back the **We met up!** button in that chat, and the confirm says so.
+
+| Route (admin session required) | What it does |
+|---|---|
+| `GET /api/admin/interests` | Every interest with `userCount`, `groupCount` and `onlyInterestCount` |
+| `POST /api/admin/interests` | `{ name }` → `201 { interest }`; `400 VALIDATION_ERROR`, `409 INTEREST_EXISTS` |
+| `PATCH /api/admin/interests/:id` | `{ name }`: rename; `404 INTEREST_NOT_FOUND`, `409 INTEREST_EXISTS` |
+| `DELETE /api/admin/interests/:id` | `204`; it comes off every profile |
+| `GET /api/admin/meetups` | Every meetup with its two groups, `metAt` and `confirmedBy` |
+| `GET /api/admin/meetups/matches` | Every match, `hasMeetup`, and the `people` in its chat (for the form) |
+| `POST /api/admin/meetups` | `{ matchId, metOn: "YYYY-MM-DD", confirmedByUserId? }` → `201 { meetup }`; `400 VALIDATION_ERROR`, `404 MATCH_NOT_FOUND`, `409 MEETUP_EXISTS` |
+| `PATCH /api/admin/meetups/:id` | `{ metOn?, confirmedByUserId? }`; `404 MEETUP_NOT_FOUND` |
+| `DELETE /api/admin/meetups/:id` | `204`; KR4 stops counting it |
+
+**Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set:
+- `npm run verify:admin-interests` runs 20 checks: `401` without a session, blank and too-long names, a duplicate in other capitals, create / list / rename (including capitals only) / `404`, and deleting an interest that's on a profile. It adds two test interests and a test person and deletes them, so the data ends up as it was.
+- `npm run verify:admin-meetups` runs 24 checks: `401`s, every validation problem at once (no match, a future day, a day before the match, someone outside the chat, a date that doesn't exist), create, a second meetup for the same match refused, two creates at the same moment leaving exactly one, edit and its checks, and delete, with KR4 back where it started. It needs a match with no meetup. KR4 goes up for a few seconds, so ask the team before running it on the shared database.
+
+**Phone and desktop.** Lighthouse Accessibility is 100 on phone and desktop for the admin home with its six tools, both tables, both Add forms showing their errors, the Edit meetup form and both Delete questions.
 
 ## Maintain Groups
 

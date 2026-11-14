@@ -7,6 +7,8 @@ import { pool, query } from '../db.js';
 import { notFound } from '../errors.js';
 import { currentAdmin, logIn, logOut, requireAdminSession } from '../lib/adminAuth.js';
 import adminGroupsRouter from './adminGroups.js';
+import adminInterestsRouter from './adminInterests.js';
+import adminMeetupsRouter from './adminMeetups.js';
 import adminUsersRouter from './adminUsers.js';
 
 const router = Router();
@@ -43,6 +45,10 @@ router.use('/admin', requireAdminSession);
 router.use(adminGroupsRouter);
 // Maintain Users: the users table with add, edit and delete (routes/adminUsers.js).
 router.use(adminUsersRouter);
+// Maintain Interests and Maintain Meetups: create, list, edit and delete (routes/adminInterests.js,
+// routes/adminMeetups.js).
+router.use(adminInterestsRouter);
+router.use(adminMeetupsRouter);
 
 // Team Aura's goal for each Key Result, as a percentage (README "OKR Metrics"). These are the
 // targets the dashboard compares against; the KR values themselves always come from the database.

@@ -19,6 +19,8 @@
     "verify:admin": "node scripts/verify-admin.js",
     "verify:admin-groups": "node scripts/verify-admin-groups.js",
     "verify:admin-users": "node scripts/verify-admin-users.js",
+    "verify:admin-interests": "node scripts/verify-admin-interests.js",
+    "verify:admin-meetups": "node scripts/verify-admin-meetups.js",
     "db:check": "node scripts/db-check.js",
     "db:demo-accounts": "node scripts/demo-accounts.js",
     "db:admin-account": "node scripts/admin-account.js"
