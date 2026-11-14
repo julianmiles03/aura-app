@@ -31,7 +31,7 @@ From our Product Requirements Document.
 
 ## Vertical Slices
 
-Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 20.**
+Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 21.**
 
 | # | Slice | What the user does | API | Database |
 |---|---|---|---|---|
@@ -55,8 +55,9 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 18 | OKR Dashboard | An admin signs in at **`#/admin`** → **OKR Dashboard**: KR1-KR4 against their targets, with the raw counts. **Refresh** reads them again | `GET /api/admin/okrs` (admin session only) | `okr_metrics` view |
 | 19 | Admin portal sign-in and Maintain | Open **`#/admin`**: a landing page with the **Admin sign in** form. Signing in shows **Maintain Users**, **Maintain Records** and a **Maintain** button for every table (view its rows); **Log out** hides them again | `POST /api/admin/login`, `GET /api/admin/session`, `GET /api/admin/tables`, `GET /api/admin/tables/:name`, `POST /api/admin/logout`; admin data routes answer `401` without the session cookie | `admin_users` (bcrypt hash), `admin_sessions` (hashed token), every app table (read only) |
 | 20 | Maintain Groups | Signed in to the admin portal: **Maintain Groups** → search the groups, **New group** (name, city, owner), open one to edit its name and city, **Add member** (up to 10; at 10 it's turned off), **Make owner**, **Remove**, **Delete group** | `GET`/`POST /api/admin/groups`, `GET`/`PATCH`/`DELETE /api/admin/groups/:id`, `POST /api/admin/groups/:id/members`, `PATCH`/`DELETE /api/admin/groups/:id/members/:userId`, `GET /api/admin/users`; an 11th member gets `409 GROUP_FULL` | `friend_groups`, `group_memberships` (`group_member_cap` trigger), `chat_participants`, `users.active_group_id` |
+| 21 | Maintain Users | Signed in to the admin portal: **Maintain Users** → a table of every user, search, **Add user**, **Edit**, **Delete** (it says first what happens to their groups); each mistake is named under its field | `GET`/`POST /api/admin/users`, `GET`/`PATCH`/`DELETE /api/admin/users/:id`; bad input gets `400 VALIDATION_ERROR` with `details.fields` | `users` (and, on delete, `group_memberships`, `chat_participants`, `user_photos`, `group_likes`) |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), and slice 20 in [Maintain Groups](#maintain-groups).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), slice 20 in [Maintain Groups](#maintain-groups), and slice 21 in [Maintain Users](#maintain-users).
 
 ### Sprint 2 JW verification
 
@@ -68,7 +69,7 @@ The Sprint 2 JW-assigned changes are tracked in [`docs/vertical-slice-verificati
 
 - **Customer app:** users use the React website, which sends requests to our Express server. The server saves and loads data in Supabase, which also handles logins. Both run live on Render.
 - **AI service:** when two groups match, the server sends both groups' names, cities and interests to Google's Gemini API, which returns three conversation starters for the new chat. See [AI Conversation Starters](#ai-conversation-starters).
-- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Groups creates, edits and deletes friend groups and their members (see [Maintain Groups](#maintain-groups)), Maintain Users and Maintain Records show each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
+- **Admin portal:** part of the same React website (`#/admin`), with its own landing page and sign-in: an admin email and password (only a bcrypt hash is stored, in `admin_users`) and an httpOnly session cookie (see [Admin Portal Sign-In](#admin-portal-sign-in)). It calls `/api/admin` on the website's own address, which Render forwards to our Express server, and every admin data route answers `401` without a valid session. Maintain Users adds, edits and deletes users (see [Maintain Users](#maintain-users)), Maintain Groups does the same for friend groups and their members (see [Maintain Groups](#maintain-groups)), Maintain Records shows each table's rows (view only), and the OKR Dashboard counts the KRs live in Supabase (see [OKR Dashboard](#okr-dashboard)). The diagram still shows the earlier plan for a separate admin portal hosted on AWS.
 
 ## Data Flow Diagrams
 
@@ -304,12 +305,13 @@ The admin portal ([`/#/admin`](https://aura-is401.onrender.com/#/admin)) has its
 | Page | Signed out | Signed in |
 |---|---|---|
 | `#/admin` | Landing page and the **Admin sign in** form (email, password) | **Maintain Users**, **Maintain Groups**, **Maintain Records** and **OKR Dashboard**; under them, **Every table** with a **Maintain** button for each of the 14 tables; **Log out** in the header |
+| `#/admin/users` | Landing page and form | [Maintain Users](#maintain-users): the table of users, with add, edit and delete |
 | `#/admin/groups`, `#/admin/groups/<id>` | Landing page and form | [Maintain Groups](#maintain-groups): every group, or one group to edit |
 | `#/admin/records` | Landing page and form; after signing in you're on this page | Every table except users, each with its own **Maintain** button |
-| `#/admin/tables/<name>` | Landing page and form | That table's row count and newest 50 rows, view only (`users` is Maintain Users) |
+| `#/admin/tables/<name>` | Landing page and form | That table's row count and newest 50 rows, view only |
 | `#/admin/okrs` | Landing page and form | The [OKR Dashboard](#okr-dashboard) |
 
-- **Maintain** pages are view only for now. On phones the table scrolls sideways inside its box. To change a row, use the app or Supabase's Table Editor.
+- The per-table **Maintain** pages are view only. On phones the table scrolls sideways inside its box. Users, groups and memberships are edited in [Maintain Users](#maintain-users) and [Maintain Groups](#maintain-groups), and those tables' pages link there; other rows change through the app or Supabase's Table Editor.
 - **Log out** ends the session and clears the cookie, and the portal goes back to the landing page with the tools hidden. Opening an admin link after that shows the sign-in form again.
 
 **How sign-in works** ([`server/src/lib/adminAuth.js`](server/src/lib/adminAuth.js), [`server/src/routes/admin.js`](server/src/routes/admin.js))
@@ -342,6 +344,32 @@ It saves the bcrypt hash, never the password. Running it again for the same emai
 **Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set for an admin account, `npm run verify:admin` runs 27 checks against the API and the database: every admin data route is `401` without a session or with a made-up cookie, a wrong password sets no cookie, the lockout, the cookie's `HttpOnly` / `SameSite=Strict` / `Path`, only hashes in the database, the signed-in routes, and that logging out deletes the session so the old cookie stops working. It signs in once and logs out, which adds and then removes one `admin_sessions` row, so it's fine on the shared database.
 
 **Phone and desktop.** On phones everything is one column, with the sign-in form right under the intro. From 1024px wide the intro and the form sit side by side, the four tools are in one row and the tables are a grid. Lighthouse Accessibility is 100 on phone and desktop for the landing page, the signed-in home, Maintain Records, a table page and the OKR Dashboard.
+
+## Maintain Users
+
+In the admin portal, **Maintain Users** (`#/admin/users`) is a table of every aura user with **Add user**, **Edit** and **Delete**. Like every admin tool, its button only appears after signing in to the portal, and its API routes answer `401 ADMIN_SIGNED_OUT` without an admin session.
+
+- **The table** lists everyone A to Z: name (with their photo or illustrated avatar), city, age, how many groups they're in, whether they have a login, and when they were added. **Search** filters by name or city. On phones it shows name (with the city under it), groups and the two buttons, so it fits without scrolling sideways. From 1024px wide every column shows and the buttons say **Edit** and **Delete**.
+- **Add user** and **Edit** open the same form: first name, last name and city (required), plus age, gender, relationship status and bio (optional), with the same limits as the app's own profile form. Edit opens with their details filled in.
+- **Delete** first says what will happen. Their profile, photos and the Connects and Passes they made for groups are deleted. For each of their groups it says who becomes the owner, or that the group is deleted too because nobody else is in it. Their messages stay in chats as from a "Former member". Focus starts on **Cancel**.
+
+**What a user is here.** A row in `users`: the aura profile. Logins are Supabase Auth accounts, which Maintain Users doesn't touch. So someone added here has a profile but no login (like the seeded users before `db:demo-accounts`), and the table's **Login** column says who has one. Deleting someone removes their aura profile but not their Supabase login; if they sign in again, the app asks them to set up a new profile.
+
+**Validation and friendly errors.** The page checks the same rules as the API before sending anything. When something's wrong, every problem is named under its own field ("First name can't be empty.", "Age must be a whole number between 18 and 120."), a summary at the top says how many fields need fixing, and focus moves to the first one. Each message is tied to its field (`aria-invalid`, `aria-describedby`), so screen readers read it with the field. Typing in a field clears its message. The API checks everything again and answers `400 VALIDATION_ERROR` with `details.fields`, one message per field, so the form can mark them all at once. Its limits: first and last name up to 50 characters, city up to 80, bio up to 500, age 18 to 120, and a relationship status from the app's list.
+
+**Deleting** goes through the same helper the app uses when someone leaves a group (`removeMembership` in [`server/src/lib/groups.js`](server/src/lib/groups.js)): they leave each group's chats, ownership passes to the longest-standing member, and a group left with nobody in it is deleted, as in the app. Then the `users` row goes, and the database's `ON DELETE` rules do the rest. Their photo files are deleted from storage.
+
+| Route (admin session required) | What it does |
+|---|---|
+| `GET /api/admin/users?limit=&q=&groupId=` | Everyone A to Z (`limit` up to 500; 20 by default), or those whose name contains `q`; each with `groupCount`, `hasLogin` and, with `groupId`, `inGroup` (Maintain Groups' people search uses this too) |
+| `GET /api/admin/users/:id` | One user with their bio, their groups (and who would own each without them), and their message, Connect/Pass and photo counts; `404 USER_NOT_FOUND` |
+| `POST /api/admin/users` | `{ firstName, lastName, city, age?, gender?, relationshipStatus?, bio? }` → `201 { user }`; `400 VALIDATION_ERROR` with `details.fields` |
+| `PATCH /api/admin/users/:id` | Any of the same fields; the ones left out don't change |
+| `DELETE /api/admin/users/:id` | `204`; everything above handled |
+
+**Checking it.** With `npm run dev` running and `ADMIN_EMAIL` / `ADMIN_PASSWORD` set, `npm run verify:admin-users` runs 28 checks against the API and the database: `401` without a session, each validation problem named at once with nothing saved, add / list / search / edit (and edit's checks), `404`s, and deleting someone who owns two groups (ownership passes on in one, the other is deleted). It adds two test people and two test groups and briefly puts one existing user in a test group, then deletes all of it, so ask the team before running it on the shared database.
+
+**Phone and desktop.** Lighthouse Accessibility is 100 on phone and desktop for the table, the Add form showing its errors, the Edit form and the Delete question.
 
 ## Maintain Groups
 

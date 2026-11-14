@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
 import { adminApi } from '../adminApi.js';
 import { canRetry, friendlyError } from '../friendlyError.js';
+import { Spinner } from './Loading.jsx';
+import { FormError, Sheet, useAsyncAction } from './ui.jsx';
 
-// Small pieces the admin portal's pages share (screens/AdminPortal.jsx, screens/AdminGroups.jsx).
+// Small pieces the admin portal's pages share (screens/AdminPortal.jsx, AdminGroups.jsx, AdminUsers.jsx).
+
+// "1 group", "3 groups", "1,204 rows".
+export const plural = (n, word, many = `${word}s`) => `${n.toLocaleString('en-US')} ${n === 1 ? word : many}`;
+export const fullName = (p) => `${p.firstName} ${p.lastName}`;
 
 // Loads one admin API path; `reload` asks again (for "Try again").
 export function useAdminData(path) {
@@ -26,5 +32,23 @@ export function LoadError({ what, error, onRetry }) {
       <p>{friendlyError(error)}</p>
       {canRetry(error) && <button type="button" className="btn btn--primary" onClick={onRetry}>Try again</button>}
     </div>
+  );
+}
+
+// A yes/no question before something that can't be undone. Focus starts on Cancel.
+export function ConfirmSheet({ title, children, confirmLabel, busyLabel, onConfirm, onClose }) {
+  const { busy, error, run } = useAsyncAction();
+  return (
+    <Sheet title={title} onClose={busy ? () => {} : onClose}>
+      <FormError error={error} />
+      <div className="admin-confirm__body">{children}</div>
+      <div className="admin-confirm__actions">
+        {/* autoFocus: a question that can't be undone starts on its safe answer. */}
+        <button type="button" className="btn btn--outline" onClick={onClose} disabled={busy} autoFocus>Cancel</button>
+        <button type="button" className="btn btn--danger-solid" onClick={() => run(onConfirm)} disabled={busy}>
+          {busy && <Spinner size={18} />}{busy ? busyLabel : confirmLabel}
+        </button>
+      </div>
+    </Sheet>
   );
 }

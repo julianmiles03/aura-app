@@ -28,7 +28,8 @@
     "verify:suggestions": "npm run verify:suggestions -w server --",
     "verify:messages": "npm run verify:messages -w server --",
     "verify:admin": "npm run verify:admin -w server",
-    "verify:admin-groups": "npm run verify:admin-groups -w server"
+    "verify:admin-groups": "npm run verify:admin-groups -w server",
+    "verify:admin-users": "npm run verify:admin-users -w server"
   },
   "devDependencies": {
     "concurrently": "^9.2.4"

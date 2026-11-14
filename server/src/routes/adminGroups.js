@@ -230,38 +230,6 @@ router.delete('/admin/groups/:id/members/:userId', async (req, res) => {
   res.json({ group: await loadGroup(pool, groupId) });
 });
 
-// ---------------------------------------------------------------------------
-// Finding people to add
-// ---------------------------------------------------------------------------
-// Up to 20 people whose name contains q (or whose id is q), A to Z. With groupId, each says
-// whether they're already in that group, so the portal can show "Already in this group".
-router.get('/admin/users', async (req, res) => {
-  const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
-  const groupId = req.query.groupId ? parseId(req.query.groupId, 'groupId') : null;
-  // % and _ are wildcards in ILIKE; escape them so they match themselves.
-  const pattern = `%${q.replace(/[\\%_]/g, '\\$&')}%`;
-  const { rows } = await query(
-    `SELECT u.id, u.first_name, u.last_name, u.city, u.avatar_color, ${MAIN_PHOTO_SQL} AS photo_url,
-            (SELECT count(*) FROM group_memberships m WHERE m.user_id = u.id) AS group_count,
-            EXISTS (SELECT 1 FROM group_memberships m WHERE m.user_id = u.id AND m.group_id = $2) AS in_group
-     FROM users u
-     WHERE $1 = '' OR (u.first_name || ' ' || u.last_name) ILIKE $3 OR u.id::text = $1
-     ORDER BY lower(u.first_name), lower(u.last_name), u.id
-     LIMIT 20`,
-    [q, groupId, pattern],
-  );
-  res.json({
-    users: rows.map((u) => ({
-      id: u.id,
-      firstName: u.first_name,
-      lastName: u.last_name,
-      city: u.city,
-      avatarColor: u.avatar_color,
-      photoUrl: u.photo_url,
-      groupCount: u.group_count,
-      inGroup: u.in_group,
-    })),
-  });
-});
+// Finding people to add (GET /api/admin/users) is in routes/adminUsers.js, with Maintain Users.
 
 export default router;
