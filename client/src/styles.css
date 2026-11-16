@@ -408,16 +408,6 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .gcard__hero-row .chip--location > svg { vertical-align: -3px; margin-right: 5px; }
 .member__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .member-profile__who { min-width: 0; }
-.gcard__counter {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-weight: 700;
-  font-size: 14px;
-}
 .gcard__likes-you {
   position: absolute;
   left: 20px;

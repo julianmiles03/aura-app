@@ -28,7 +28,7 @@ function GroupPhotos({ group }) {
 
 // The recommended-group card on Find. Kept short so the whole card (photos, name, place,
 // top interests, members) fits above Pass / Connect on a 390px-wide phone.
-export default function GroupCard({ group, position, total, onMemberClick }) {
+export default function GroupCard({ group, onMemberClick }) {
   const { stats } = group;
   // Shared interests first, then the others; 3 shown, the rest as "+N".
   const interests = [...group.interests.filter((i) => i.shared), ...group.interests.filter((i) => !i.shared)];
@@ -44,7 +44,6 @@ export default function GroupCard({ group, position, total, onMemberClick }) {
     <article className="gcard" aria-label={group.name}>
       <div className="gcard__hero">
         <GroupPhotos group={group} />
-        {total > 0 && <span className="gcard__counter">{position} of {total}</span>}
         {stats?.likesYou && <span className="gcard__likes-you">Wants to meet you</span>}
       </div>
 

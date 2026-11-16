@@ -105,7 +105,7 @@ export default function FindScreen({ me, onSwitchGroup, refreshMe, isDesktop = f
           {current ? (
             <>
               <SwipeCard key={current.id} onSwipe={decide} disabled={busy || explainerOpen}>
-                <GroupCard group={current} position={index + 1} total={data.total} onMemberClick={showMember} />
+                <GroupCard group={current} onMemberClick={showMember} />
               </SwipeCard>
               <div className="decide-bar">
                 <button
