@@ -29,7 +29,7 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
   };
 
   return (
-    <div className="gate">
+    <main className="gate">
       <div className="steps" role="img" aria-label="Step 1 of 2"><span className="on" /><span /></div>
       <h1 className="page-title" style={{ fontSize: 34 }}>Build your profile</h1>
       <p className="subtle">This profile is about you. Groups come next.</p>
@@ -69,7 +69,7 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
           <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</button>
         </form>
       </section>
-    </div>
+    </main>
   );
 }
 
@@ -78,7 +78,7 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
   const [createdGroup, setCreatedGroup] = useState(null);
   if (createdGroup) {
     return (
-      <div className="gate">
+      <main className="gate">
         <div className="steps" role="img" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
         <h1 className="page-title" style={{ fontSize: 34 }}>Invite your friends</h1>
         <p className="subtle">Your group is ready. Share the code or link before you start finding other groups.</p>
@@ -86,7 +86,7 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
           <InviteFriends group={createdGroup} onChanged={setCreatedGroup} />
           <button type="button" className="btn btn--primary btn--block" style={{ marginTop: 18 }} onClick={refreshMe}>Continue to aura</button>
         </section>
-      </div>
+      </main>
     );
   }
   const onDone = async (group, tab) => {
@@ -97,7 +97,7 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
     window.location.hash = '#/find';
   };
   return (
-    <div className="gate">
+    <main className="gate">
       <div className="steps" role="img" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
       <h1 className="page-title" style={{ fontSize: 34 }}>{inviteCode ? 'Join your friend group' : 'One more thing'}</h1>
       <div className="gate-error" role="alert" style={{ marginTop: 16 }}>
@@ -107,7 +107,7 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
       <section className="card">
         <CreateOrJoinForm defaultTab={inviteCode ? 'join' : 'create'} defaultInviteCode={inviteCode} joinOnly={Boolean(inviteCode)} onDone={onDone} />
       </section>
-    </div>
+    </main>
   );
 }
 
@@ -117,10 +117,10 @@ export function JoinGroupScreen({ refreshMe, inviteCode }) {
     window.location.hash = '#/find';
   };
   return (
-    <div className="gate">
+    <main className="gate">
       <h1 className="page-title" style={{ fontSize: 34 }}>Join your friend group</h1>
       <p className="subtle">Use the invite link your friend shared, then you’ll be ready to find groups together.</p>
       <section className="card"><CreateOrJoinForm defaultTab="join" defaultInviteCode={inviteCode} joinOnly onDone={joinDone} /></section>
-    </div>
+    </main>
   );
 }

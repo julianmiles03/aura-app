@@ -22,6 +22,7 @@
     "verify:admin-users": "node scripts/verify-admin-users.js",
     "verify:admin-interests": "node scripts/verify-admin-interests.js",
     "verify:admin-meetups": "node scripts/verify-admin-meetups.js",
+    "verify:custom-interests": "node scripts/verify-custom-interests.js",
     "db:check": "node scripts/db-check.js",
     "db:demo-accounts": "node scripts/demo-accounts.js",
     "db:admin-account": "node scripts/admin-account.js"

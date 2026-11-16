@@ -50,7 +50,8 @@ erDiagram
     }
     interests {
         bigint id PK
-        varchar name UK
+        varchar name UK "unique in any capitalization, stored tidy"
+        boolean in_picker "offered to everyone; custom ones join at 10 people"
     }
     user_interests {
         bigint user_id PK, FK

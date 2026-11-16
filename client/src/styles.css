@@ -821,6 +821,9 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .about dt { color: var(--muted); font-size: 15px; }
 .about dd { margin: 2px 0 0; font-weight: 700; font-size: 17px; }
 .hint { color: var(--muted); font-size: 14px; margin: 12px 0 0; }
+.interest-hint { margin-top: 6px; }
+/* 'Add "<a 40-character name>"' wraps onto a second line instead of running out of the button. */
+.interest-add { white-space: normal; overflow-wrap: anywhere; padding-top: 10px; padding-bottom: 10px; }
 
 .mygroups-head { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 12px; }
 .mygroups-head h2 { font-size: 24px; font-weight: 800; }
@@ -1245,6 +1248,11 @@ a.admin-group-row:hover { border-color: var(--accent); }
 .admin-confirm__body p { margin: 0 0 18px; color: var(--muted); }
 .admin-confirm__actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
 .admin-confirm__actions .btn { min-width: 0; white-space: normal; }
+/* A checkbox with its label as one 44px-tall tap target, and a hint under it. */
+.admin-check { margin: 0 0 18px; }
+.admin-check__row { display: flex; align-items: center; gap: 12px; min-height: 44px; font-weight: 700; cursor: pointer; overflow-wrap: anywhere; }
+.admin-check__row input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--accent); }
+.admin-check__hint { margin: 2px 0 0 34px; color: var(--muted); font-size: 14px; }
 
 /* Maintain Users / Interests / Meetups: real tables. On phones only the main columns and the buttons
    show (the rest moves under the name, admin-crud__sub), so they fit without scrolling sideways. */

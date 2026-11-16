@@ -6,11 +6,15 @@ import { LoadingStatus, Skeleton, Spinner } from '../components/Loading.jsx';
 import { FormError, Sheet, useToast } from '../components/ui.jsx';
 
 // Maintain Interests (#/admin/interests), in the admin portal (signed-in admins only): a table of every
-// interest with Add, Rename and Delete. The API (server/src/routes/adminInterests.js) enforces the
+// interest with Add, Edit and Delete. The API (server/src/routes/adminInterests.js) enforces the
 // rules; this page checks them first so mistakes show up under the field straight away.
+// Custom interests (typed by someone on their profile) aren't in everyone's interest picker until
+// enough people have them; Edit can add one to it sooner.
 
 const MAX = 40; // interests.name is varchar(40)
 const byName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) || a.id - b.id;
+// Names match without regard to case or spacing, like the API.
+const nameKey = (text) => text.replace(/\s+/g, ' ').trim().toLowerCase();
 
 export function InterestsPage() {
   const { data, error, reload } = useAdminData('/admin/interests');
@@ -26,10 +30,12 @@ export function InterestsPage() {
   const q = query.trim().toLowerCase();
   const shown = interests?.filter((i) => !q || i.name.toLowerCase().includes(q));
 
+  const threshold = data?.pickerThreshold ?? 10;
+
   const saved = (interest, isNew) => {
     setInterests((list) => [...list.filter((i) => i.id !== interest.id), interest].sort(byName));
     setEditing(null);
-    toast(isNew ? `Added “${interest.name}”.` : `Renamed to “${interest.name}”.`);
+    toast(isNew ? `Added “${interest.name}”.` : `Saved “${interest.name}”.`);
   };
 
   return (
@@ -44,6 +50,10 @@ export function InterestsPage() {
       <p className="admin-intro">
         The interests people can pick for their profile. A group's interests come from its members',
         so a rename or delete shows up on every profile and group card at once.
+      </p>
+      <p className="admin-intro">
+        <strong>Custom</strong> ones were typed by someone on their profile. They're on those profiles,
+        but they join everyone's interest picker only once {threshold} people have them, or when you add one with Edit.
       </p>
 
       <div className="field admin-search">
@@ -70,12 +80,13 @@ export function InterestsPage() {
           ) : (
             <div className="admin-table-wrap admin-crud" role="region" aria-labelledby="admin-title" tabIndex={0}>
               <table className="admin-table">
-                <caption className="sr-only">Interests, A to Z, with how many people and groups have each</caption>
+                <caption className="sr-only">Interests, A to Z, with how many people and groups have each and whether everyone can pick it</caption>
                 <thead>
                   <tr>
                     <th scope="col">Interest</th>
                     <th scope="col" className="admin-crud__narrow">People</th>
                     <th scope="col" className="admin-crud__narrow admin-crud__wide">Groups</th>
+                    <th scope="col" className="admin-crud__narrow admin-crud__wide">Picker</th>
                     <th scope="col" className="admin-crud__actions"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
@@ -85,14 +96,15 @@ export function InterestsPage() {
                       <th scope="row" className="admin-crud__rowhead">
                         <span className="admin-crud__name">
                           {i.name}
-                          <span className="admin-crud__sub">{plural(i.groupCount, 'group')}</span>
+                          <span className="admin-crud__sub">{plural(i.groupCount, 'group')}{!i.inPicker && ' · Custom'}</span>
                         </span>
                       </th>
                       <td className="admin-crud__narrow">{i.userCount}</td>
                       <td className="admin-crud__narrow admin-crud__wide">{i.groupCount}</td>
+                      <td className="admin-crud__narrow admin-crud__wide">{i.inPicker ? 'Everyone' : 'Custom'}</td>
                       <td className="admin-crud__actions">
-                        <button type="button" className="btn btn--outline btn--sm" onClick={() => setEditing(i)} aria-label={`Rename ${i.name}`}>
-                          <Icon name="pencil" size={18} /><span className="admin-crud__btn-text">Rename</span>
+                        <button type="button" className="btn btn--outline btn--sm" onClick={() => setEditing(i)} aria-label={`Edit ${i.name}`}>
+                          <Icon name="pencil" size={18} /><span className="admin-crud__btn-text">Edit</span>
                         </button>
                         <button type="button" className="btn btn--danger btn--sm" onClick={() => setDeleting(i)} aria-label={`Delete ${i.name}`}>
                           <Icon name="trash" size={18} /><span className="admin-crud__btn-text">Delete</span>
@@ -111,6 +123,7 @@ export function InterestsPage() {
         <InterestFormSheet
           interest={editing === 'new' ? null : editing}
           others={interests.filter((i) => editing === 'new' || i.id !== editing.id)}
+          threshold={threshold}
           onClose={() => setEditing(null)}
           onSaved={saved}
         />
@@ -150,11 +163,13 @@ export function InterestsPage() {
   );
 }
 
-// "Add interest" and "Rename": one field, checked here (blank, too long, already taken in any
-// capitalization) and again by the API, whose messages show under the field the same way.
-function InterestFormSheet({ interest, others, onClose, onSaved }) {
+// "Add interest" and "Edit": the name, checked here (blank, too long, already taken in any
+// capitalization or spacing) and again by the API, whose messages show under the field the same way.
+// Editing a custom interest also offers to add it to everyone's picker now.
+function InterestFormSheet({ interest, others, threshold, onClose, onSaved }) {
   const isNew = !interest;
   const [name, setName] = useState(interest?.name ?? '');
+  const [addToPicker, setAddToPicker] = useState(false);
   const [error, setError] = useState(null); // the message under the field
   const [formError, setFormError] = useState(null); // anything else (network, server)
   const [busy, setBusy] = useState(false);
@@ -164,7 +179,7 @@ function InterestFormSheet({ interest, others, onClose, onSaved }) {
     const trimmed = value.trim();
     if (!trimmed) return "Name can't be empty.";
     if (trimmed.length > MAX) return `Name must be ${MAX} characters or fewer.`;
-    const taken = others.find((i) => i.name.toLowerCase() === trimmed.toLowerCase());
+    const taken = others.find((i) => nameKey(i.name) === nameKey(trimmed));
     if (taken) return `There's already an interest called “${taken.name}”.`;
     return null;
   };
@@ -182,7 +197,7 @@ function InterestFormSheet({ interest, others, onClose, onSaved }) {
     try {
       const { interest: next } = isNew
         ? await adminApi('/admin/interests', { method: 'POST', body: { name } })
-        : await adminApi(`/admin/interests/${interest.id}`, { method: 'PATCH', body: { name } });
+        : await adminApi(`/admin/interests/${interest.id}`, { method: 'PATCH', body: { name, ...(addToPicker && { inPicker: true }) } });
       onSaved(next, isNew);
     } catch (err) {
       // A name problem (400, or 409 "already an interest called ...") goes under the field.
@@ -196,19 +211,33 @@ function InterestFormSheet({ interest, others, onClose, onSaved }) {
   };
 
   return (
-    <Sheet title={isNew ? 'Add interest' : `Rename “${interest.name}”`} onClose={busy ? () => {} : onClose}>
+    <Sheet title={isNew ? 'Add interest' : `Edit “${interest.name}”`} onClose={busy ? () => {} : onClose}>
       <form onSubmit={submit} noValidate>
         <FormError error={formError} />
-        <AdminField id={id} label="Name" error={error} count={name.length} max={MAX}>
+        <AdminField id={id} label="Name" error={error} count={name.length} max={MAX}
+          hint={isNew ? "It goes straight into everyone's interest picker." : undefined}>
           <input
             id={id} value={name} maxLength={MAX} autoComplete="off" placeholder="Board games"
             onChange={(e) => { setName(e.target.value); if (error) setError(null); }}
-            aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-error` : undefined}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-error` : isNew ? `${id}-hint` : undefined}
           />
         </AdminField>
+        {interest && !interest.inPicker && (
+          <div className="admin-check">
+            <label className="admin-check__row">
+              <input type="checkbox" checked={addToPicker} onChange={(e) => setAddToPicker(e.target.checked)} aria-describedby={`${id}-picker-hint`} />
+              <span>Add to everyone's interest picker now</span>
+            </label>
+            <p id={`${id}-picker-hint`} className="admin-check__hint">
+              It's custom: {plural(interest.userCount, 'person has', 'people have')} it, and it joins by itself at {threshold}.
+              Once it's in, it stays in unless you delete it.
+            </p>
+          </div>
+        )}
         <button className="btn btn--primary btn--block" disabled={busy}>
           {busy && <Spinner size={18} />}
-          {busy ? 'Saving…' : isNew ? 'Add interest' : 'Save name'}
+          {busy ? 'Saving…' : isNew ? 'Add interest' : 'Save'}
         </button>
       </form>
     </Sheet>

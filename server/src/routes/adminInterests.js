@@ -5,22 +5,29 @@
 // Interests are shared: people pick them on their profile (user_interests), and a group's interests
 // are the union of its members' (the group_shared_interests view). So a rename shows up everywhere at
 // once, and a delete takes the interest off every profile that has it (ON DELETE CASCADE).
-// Names are unique without regard to case ("hiking" and "Hiking" are the same interest), like the
-// database's interests_name_lower_idx.
+// Names are unique without regard to case or spacing ("hiking" and " Hiking" are the same interest),
+// like the app (lib/interests.js) and the database's interests_name_lower_idx.
+//
+// Interests an admin adds go straight into everyone's interest picker. Custom ones (a name someone
+// typed on their profile) join it once 10 people have them; an admin can add one to it sooner with
+// PATCH { inPicker: true }. Nothing leaves the picker except by being deleted.
 import { Router } from 'express';
 import { query } from '../db.js';
-import { ApiError, conflict, notFound } from '../errors.js';
-import { parseId, readText } from '../lib/validate.js';
+import { ApiError, badRequest, conflict, notFound } from '../errors.js';
+import { PICKER_THRESHOLD, readInterestName } from '../lib/interests.js';
+import { parseId } from '../lib/validate.js';
 
 const router = Router();
 
 const interestNotFound = () => notFound('INTEREST_NOT_FOUND', "That interest doesn't exist (it may have been deleted).");
 
-// The name, checked like the app checks a new interest: 1 to 40 characters once trimmed. Errors use
-// the same shape as Maintain Users: 400 VALIDATION_ERROR with details.fields.name.
+// The name, checked and tidied like the app does a new interest: 1 to 40 characters once trimmed,
+// one space between words. Errors use the same shape as Maintain Users: 400 VALIDATION_ERROR with
+// details.fields.name.
 function readName(body) {
   try {
-    return readText(body.name, 'Name', { max: 40, required: true });
+    if (body.name === undefined || body.name === null) throw badRequest('VALIDATION_ERROR', 'Name is required.');
+    return readInterestName(body.name, 'Name');
   } catch (err) {
     if (!(err instanceof ApiError)) throw err;
     throw new ApiError(400, 'VALIDATION_ERROR', err.message, { fields: { name: err.message } });
@@ -44,7 +51,7 @@ const duplicate = (existing) => {
 // how many people have it as their only interest (the app asks those people to add another one if
 // it's deleted, because a profile needs at least one interest).
 const SELECT_INTERESTS = `
-  SELECT i.id, i.name,
+  SELECT i.id, i.name, i.in_picker,
          (SELECT count(*) FROM user_interests ui WHERE ui.interest_id = i.id) AS user_count,
          (SELECT count(*) FROM group_shared_interests s WHERE s.interest_id = i.id) AS group_count,
          (SELECT count(*) FROM user_interests ui
@@ -54,6 +61,7 @@ const SELECT_INTERESTS = `
 const interestJson = (i) => ({
   id: i.id,
   name: i.name,
+  inPicker: i.in_picker,
   userCount: i.user_count,
   groupCount: i.group_count,
   onlyInterestCount: i.only_interest_count,
@@ -64,18 +72,18 @@ async function loadInterest(id) {
   return interestJson(row);
 }
 
-// Every interest, A to Z: { interests: [...] }.
+// Every interest, A to Z: { interests: [...], pickerThreshold }.
 router.get('/admin/interests', async (req, res) => {
   const { rows } = await query(`${SELECT_INTERESTS} ORDER BY lower(i.name), i.id`);
-  res.json({ interests: rows.map(interestJson) });
+  res.json({ interests: rows.map(interestJson), pickerThreshold: PICKER_THRESHOLD });
 });
 
-// Create: { name } -> 201 { interest }.
+// Create: { name } -> 201 { interest }. It goes straight into everyone's picker.
 router.post('/admin/interests', async (req, res) => {
   const name = readName(req.body);
   await assertNameFree(name);
   try {
-    const { rows: [row] } = await query('INSERT INTO interests (name) VALUES ($1) RETURNING id', [name]);
+    const { rows: [row] } = await query('INSERT INTO interests (name, in_picker) VALUES ($1, true) RETURNING id', [name]);
     res.status(201).json({ interest: await loadInterest(row.id) });
   } catch (err) {
     // Someone added the same name a moment ago: the unique index catches it.
@@ -84,13 +92,27 @@ router.post('/admin/interests', async (req, res) => {
   }
 });
 
-// Rename: { name } -> { interest }. Changing only the capitalization ("hiking" -> "Hiking") is fine.
+// Edit: { name?, inPicker? } -> { interest }. `name` renames it; changing only the capitalization
+// ("hiking" -> "Hiking") is fine. `inPicker: true` puts a custom interest in everyone's picker now
+// instead of at 10 people. `inPicker: false` is refused: an interest leaves the picker only by being
+// deleted, so a custom interest that has caught on can't be pushed back out of sight.
 router.patch('/admin/interests/:id', async (req, res) => {
   const id = parseId(req.params.id, 'interest id');
-  const name = readName(req.body);
-  await assertNameFree(name, id);
+  const b = req.body ?? {};
+  const name = b.name === undefined ? undefined : readName(b);
+  if (b.inPicker !== undefined && b.inPicker !== true) {
+    const message = "An interest can't be taken out of the picker. Delete it instead.";
+    throw badRequest('VALIDATION_ERROR', message, { fields: { inPicker: message } });
+  }
+  if (name === undefined && b.inPicker === undefined) {
+    throw badRequest('VALIDATION_ERROR', 'Send a new name, inPicker: true, or both.', { fields: { name: 'Name is required.' } });
+  }
+  if (name !== undefined) await assertNameFree(name, id);
   try {
-    const { rowCount } = await query('UPDATE interests SET name = $2 WHERE id = $1', [id, name]);
+    const { rowCount } = await query(
+      `UPDATE interests SET name = COALESCE($2, name), in_picker = in_picker OR $3 WHERE id = $1`,
+      [id, name ?? null, b.inPicker === true],
+    );
     if (!rowCount) throw interestNotFound();
   } catch (err) {
     if (err.code === '23505') throw duplicate(name);
