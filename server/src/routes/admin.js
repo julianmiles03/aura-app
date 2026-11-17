@@ -129,7 +129,7 @@ router.get('/admin/okrs', async (req, res) => {
 const TABLES = [
   { name: 'users', label: 'Users', about: 'Everyone with an aura profile.', newestFirst: 'id DESC' },
   { name: 'user_photos', label: 'User photos', about: "Profile photos. Position 1 is a person's main photo.", newestFirst: 'id DESC' },
-  { name: 'interests', label: 'Interests', about: 'Every interest anyone has added.', newestFirst: 'id DESC' },
+  { name: 'interests', label: 'Interests', about: 'Every interest anyone has added. in_picker = everyone can pick it; custom ones join at 10 people.', newestFirst: 'id DESC' },
   { name: 'user_interests', label: 'User interests', about: 'Which person picked which interest.', newestFirst: 'added_at DESC' },
   { name: 'friendships', label: 'Friendships', about: 'Pairs of friends, used to rank mutual friends on Find.', newestFirst: 'created_at DESC' },
   { name: 'friend_groups', label: 'Friend groups', about: 'Groups of up to 10 friends.', newestFirst: 'id DESC' },

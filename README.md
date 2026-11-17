@@ -31,7 +31,7 @@ From our Product Requirements Document.
 
 ## Vertical Slices
 
-Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 23.**
+Each slice works end to end: a screen in the app, an API endpoint, and rows in Postgres, live at the URL above. **Target for Sprint 2: 10. Working now: 24.**
 
 | # | Slice | What the user does | API | Database |
 |---|---|---|---|---|
@@ -56,10 +56,11 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 19 | Admin portal sign-in and Maintain | Open **`#/admin`**: a landing page with the **Admin sign in** form. Signing in shows **Maintain Users**, **Maintain Records** and a **Maintain** button for every table (view its rows); **Log out** hides them again | `POST /api/admin/login`, `GET /api/admin/session`, `GET /api/admin/tables`, `GET /api/admin/tables/:name`, `POST /api/admin/logout`; admin data routes answer `401` without the session cookie | `admin_users` (bcrypt hash), `admin_sessions` (hashed token), every app table (read only) |
 | 20 | Maintain Groups | Signed in to the admin portal: **Maintain Groups** → search the groups, **New group** (name, city, owner), open one to edit its name and city, **Add member** (up to 10; at 10 it's turned off), **Make owner**, **Remove**, **Delete group** | `GET`/`POST /api/admin/groups`, `GET`/`PATCH`/`DELETE /api/admin/groups/:id`, `POST /api/admin/groups/:id/members`, `PATCH`/`DELETE /api/admin/groups/:id/members/:userId`, `GET /api/admin/users`; an 11th member gets `409 GROUP_FULL` | `friend_groups`, `group_memberships` (`group_member_cap` trigger), `chat_participants`, `users.active_group_id` |
 | 21 | Maintain Users | Signed in to the admin portal: **Maintain Users** → a table of every user, search, **Add user**, **Edit**, **Delete** (it says first what happens to their groups); each mistake is named under its field | `GET`/`POST /api/admin/users`, `GET`/`PATCH`/`DELETE /api/admin/users/:id`; bad input gets `400 VALIDATION_ERROR` with `details.fields` | `users` (and, on delete, `group_memberships`, `chat_participants`, `user_photos`, `group_likes`) |
-| 22 | Maintain Interests | Signed in to the admin portal: **Maintain Interests** → a table of every interest with how many people and groups have it, search, **Add interest**, **Rename**, **Delete** (it says first whose profiles it comes off) | `GET`/`POST /api/admin/interests`, `PATCH`/`DELETE /api/admin/interests/:id`; a name that exists in any capitalization gets `409 INTEREST_EXISTS` | `interests` (and `user_interests`, the `group_shared_interests` view) |
+| 22 | Maintain Interests | Signed in to the admin portal: **Maintain Interests** → a table of every interest with how many people and groups have it and whether it's **Custom**, search, **Add interest**, **Edit** (rename, or add a custom one to everyone's picker), **Delete** (it says first whose profiles it comes off) | `GET`/`POST /api/admin/interests`, `PATCH`/`DELETE /api/admin/interests/:id`; a name that exists in any capitalization or spacing gets `409 INTEREST_EXISTS` | `interests` (and `user_interests`, the `group_shared_interests` view) |
 | 23 | Maintain Meetups | Signed in to the admin portal: **Maintain Meetups** → a table of every "We met up!", **Add meetup** (match, day, who confirmed), **Edit**, **Delete** | `GET`/`POST /api/admin/meetups`, `GET /api/admin/meetups/matches`, `GET`/`PATCH`/`DELETE /api/admin/meetups/:id`; a second meetup for a match gets `409 MEETUP_EXISTS` | `meetups` (feeds KR4 in `okr_metrics`) |
+| 24 | Custom interests | Profile (or profile setup) → **Interests** → type one that isn't in the list → **Add**: it's on your profile at once, but nobody else is offered it until 10 people have typed it (any capitals or spacing); then everyone can pick it | `PATCH /api/me` (`interests`), `GET /api/interests` (only `in_picker` ones) | `interests.in_picker`, `user_interests` |
 
-Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), slice 20 in [Maintain Groups](#maintain-groups), slice 21 in [Maintain Users](#maintain-users), and slices 22 and 23 in [Maintain Interests and Meetups](#maintain-interests-and-meetups).
+Slice 11 has a step-by-step walkthrough in [Verifying the Vertical Slice](#verifying-the-vertical-slice), slice 12 in [Live Chat Updates](#live-chat-updates), slice 14 in [Read Receipts](#read-receipts), slice 15 in [Typing Indicator](#typing-indicator), slice 16 in [AI Conversation Starters](#ai-conversation-starters), slice 17 in [OKR Metrics](#okr-metrics), slice 18 in [OKR Dashboard](#okr-dashboard), slice 19 in [Admin Portal Sign-In](#admin-portal-sign-in), slice 20 in [Maintain Groups](#maintain-groups), slice 21 in [Maintain Users](#maintain-users), slices 22 and 23 in [Maintain Interests and Meetups](#maintain-interests-and-meetups), and slice 24 in [Custom Interests](#custom-interests).
 
 ### Sprint 2 JW verification
 
@@ -105,6 +106,7 @@ Business rules are enforced in the database, not just the UI:
 - Unique constraints prevent duplicate likes, memberships and matches.
 - A composite foreign key ensures your active group is one you belong to.
 - A group's shared interests come from the `group_shared_interests` view, so they're never stored and update the moment a member edits their interests.
+- Interest names are unique in any capitalization (`interests_name_lower_idx`) and stored tidy, with no spaces at the ends and one between words (`interests_name_tidy`), so "Rock Climbing" and "rock  climbing " can only ever be one interest. `interests.in_picker` says whether everyone is offered it (see [Custom Interests](#custom-interests)).
 
 ## OKR Metrics
 
@@ -392,8 +394,8 @@ In the admin portal, **Maintain Users** (`#/admin/users`) is a table of every au
 Two more tools in the admin portal, each with its own button on the admin home (shown only after signing in): **Maintain Interests** (`#/admin/interests`) and **Maintain Meetups** (`#/admin/meetups`). Both are tables with create, edit and delete. Their API routes answer `401 ADMIN_SIGNED_OUT` without an admin session.
 
 **Maintain Interests**
-- **The table:** every interest A to Z, how many people picked it and how many groups show it (a group's interests are its members'). **Search** by name. On phones the group count moves under the name.
-- **Add interest** and **Rename:** one field, 1 to 40 characters. Names are unique in any capitalization, like the database's index: "hiking" when "Hiking" exists gets "There's already an interest called “Hiking”." under the field (`409 INTEREST_EXISTS`). Renaming only the capitalization is fine. A rename shows up on every profile and group card at once.
+- **The table:** every interest A to Z, how many people picked it, how many groups show it (a group's interests are its members'), and **Picker**: **Everyone** or **Custom** (see [Custom Interests](#custom-interests)). **Search** by name. On phones the group count and "Custom" move under the name.
+- **Add interest** and **Edit:** the name, 1 to 40 characters, tidied like the app does (spaces at the ends dropped, one space between words). Names are unique in any capitalization or spacing: "hiking" when "Hiking" exists gets "There's already an interest called “Hiking”." under the field (`409 INTEREST_EXISTS`). Renaming only the capitalization is fine. A rename shows up on every profile and group card at once. An interest an admin adds goes straight into everyone's picker. Editing a custom one also offers **Add to everyone's interest picker now**, with how many people have it; once an interest is in the picker it stays there unless it's deleted (`inPicker: false` gets `400`).
 - **Delete** says first how many people's profiles it comes off and how many groups stop showing it. If it was someone's only interest, the confirm says the app will ask them to add one (a profile needs at least one). The database removes it from everyone (`user_interests` cascades).
 
 **Maintain Meetups**
@@ -404,9 +406,9 @@ Two more tools in the admin portal, each with its own button on the admin home (
 
 | Route (admin session required) | What it does |
 |---|---|
-| `GET /api/admin/interests` | Every interest with `userCount`, `groupCount` and `onlyInterestCount` |
-| `POST /api/admin/interests` | `{ name }` → `201 { interest }`; `400 VALIDATION_ERROR`, `409 INTEREST_EXISTS` |
-| `PATCH /api/admin/interests/:id` | `{ name }`: rename; `404 INTEREST_NOT_FOUND`, `409 INTEREST_EXISTS` |
+| `GET /api/admin/interests` | Every interest with `inPicker`, `userCount`, `groupCount` and `onlyInterestCount`, plus `pickerThreshold` (10) |
+| `POST /api/admin/interests` | `{ name }` → `201 { interest }`, in everyone's picker; `400 VALIDATION_ERROR`, `409 INTEREST_EXISTS` |
+| `PATCH /api/admin/interests/:id` | `{ name?, inPicker? }`: rename, and/or `inPicker: true` to add a custom one to the picker now; `400 VALIDATION_ERROR` (including `inPicker: false`), `404 INTEREST_NOT_FOUND`, `409 INTEREST_EXISTS` |
 | `DELETE /api/admin/interests/:id` | `204`; it comes off every profile |
 | `GET /api/admin/meetups` | Every meetup with its two groups, `metAt` and `confirmedBy` |
 | `GET /api/admin/meetups/matches` | Every match, `hasMeetup`, and the `people` in its chat (for the form) |
@@ -557,6 +559,24 @@ Everyone has **1 main photo + up to 3 more**, on the Profile page and in profile
 - **Accessibility.** Each photo is a labeled button that opens its options ("Avery's main photo. Photo options"), photos in the options sheet and on member profiles have alt text ("Avery's main photo"), the upload status is announced (`role="status"`), and errors use `role="alert"`. Lighthouse Accessibility on Profile is 100 on phone and desktop with real photos.
 
 **Try it by hand.** Sign in as anyone, open Profile: a demo person shows their illustrated avatar. Tap it → **Upload a new main photo** and pick an image. It shows "Uploading…", then your photo big at the top (and as your avatar in Find and chats). Tap one of the 3 below → **Make main photo** to swap. In Supabase → Storage → `profile-photos` you'll see the file in a folder named after the user's id, and in the `user_photos` table its `image_url`.
+
+## Custom Interests
+
+People can type an interest that isn't in the list, but it no longer goes straight into everyone's interest picker. That kept filling the picker with typos and one-offs.
+
+- **On your profile right away.** Profile → **Interests** → **Edit** (or the Interests card in profile setup): type a name and tap **Add "…"**. It's on your profile (and your groups' interests) at once, like any other interest. The hint under the box says how it works: "Don't see yours? Type it in. It goes on your profile right away, and everyone can pick it once 10 people have added it."
+- **Not in anyone else's picker yet.** The picker (`GET /api/interests`) offers only interests with `interests.in_picker` set. A new name someone types is saved with `in_picker = false`: a **custom** interest. Other people can still see it on that person's profile and group card; they just aren't offered it.
+- **Shared at 10.** Anyone who types the same name gets the same interest, not a copy. When the 10th person has it on their profile, `in_picker` turns on and everyone is offered it from then on, even if some of them later remove it. The check runs in the same transaction as the save (`replaceInterests` in `server/src/lib/interests.js`, threshold `PICKER_THRESHOLD`). Each interest's row stays locked until that save commits, so 10 people adding it at the same moment still puts it in the picker. The rows are locked in name order, so two saves can't deadlock.
+- **Same name in any capitals or spacing.** "Rock Climbing", "rock climbing " and "ROCK   climbing" are one interest. The server tidies what's typed (trims the ends, turns tabs, non-breaking spaces and runs of spaces into one space, drops invisible characters) and looks it up case-insensitively. The first person's spelling is the one everyone sees. In the app, typing a name you already have says **Already on your profile**, and typing one from the picker in other capitals adds the picker's spelling ("pickleball " → **Add "Pickleball"**).
+- **What's in the picker.** The 16 starter interests, any interest an admin adds in [Maintain Interests](#maintain-interests-and-meetups), and custom ones that reached 10 people. An admin can also add a custom one early (**Edit** → **Add to everyone's interest picker now**). An interest leaves the picker only by being deleted.
+- **Existing data.** Migration `010_custom_interests.sql` adds `in_picker` and applies the rule to what's already there: the 16 starter interests and anything 10 or more people have stay in the picker, and the rest become custom. Nobody loses an interest from their profile. It also tidies any untidy names, adds the `interests_name_tidy` check, and drops the old exact-name `UNIQUE` on `interests.name`: `interests_name_lower_idx` already covers it, and the extra index made two people saving the same new interest at once fail.
+- **Bad input.** A blank or invisible-only name, one over 40 characters, a name that isn't text, or an empty list gets `400 VALIDATION_ERROR` and nothing is saved.
+
+**Checking it.** With `npm run dev` running, `npm run verify:custom-interests` runs 20 checks through the API: a new interest is on the person's profile and not in the picker; 8 more people typing it in other capitals and spacing (trailing spaces, several spaces, a non-breaking space, a tab) all get the same interest; it's still out of the picker at 9 people and in it at 10; two spellings in one save count once; the bad inputs above get `400` and change nothing. It signs in as demo accounts 1-11, then puts back everyone's interests and deletes the test interest, so the data ends up as it was. For those few seconds the test interest is on 10 profiles and briefly in everyone's picker, so ask the team before running it on the shared database.
+
+**Try it by hand.** Sign in as Ben, open Profile → Interests → **Edit**, type " slack line " and tap **Add "slack line"**: it's on Ben's profile. Sign in as Chloe: typing "slack" in her picker offers nothing. In the admin portal, Maintain Interests shows **slack line** as **Custom** with 1 person.
+
+**Phone and desktop.** Lighthouse Accessibility is 100 on phone and desktop for Profile's interests sheet with a name typed, profile setup with the interest box, and Maintain Interests' Edit sheet for a custom interest. A 40-character name wraps inside the **Add** button instead of running off the screen. The onboarding screens (profile setup, create or join a group) are now a `<main>` landmark, which Lighthouse had flagged.
 
 ## Group Photo
 

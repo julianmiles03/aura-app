@@ -57,8 +57,13 @@ Table user_photos {
 }
 
 Table interests {
-  id    bigint [pk, increment]
-  name  varchar(40) [not null, unique]
+  id         bigint [pk, increment]
+  name       varchar(40) [not null, note: 'stored tidy: no spaces at the ends, one between words (check interests_name_tidy)']
+  in_picker  boolean [not null, default: true, note: 'everyone is offered it in the interest picker; a custom (typed) one joins at 10 people']
+
+  indexes {
+    `lower(name)` [unique, name: 'interests_name_lower_idx', note: '"Hiking" and "hiking" are one interest']
+  }
 }
 
 Table user_interests {

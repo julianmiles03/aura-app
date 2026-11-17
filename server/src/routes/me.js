@@ -4,6 +4,7 @@ import { badRequest, conflict, forbidden, notFound } from '../errors.js';
 import { loadChatRows } from '../lib/chats.js';
 import { MAIN_PHOTO_SQL, userInitials } from '../lib/format.js';
 import { loadGroupCards } from '../lib/groups.js';
+import { readInterestNames, replaceInterests } from '../lib/interests.js';
 import { getOnboarding } from '../lib/profile.js';
 import { PHOTO_MAX_BYTES, PHOTO_TYPES, removePhoto, savePhoto } from '../lib/storage.js';
 import { parseId, readInt, readText, readTextList } from '../lib/validate.js';
@@ -64,7 +65,8 @@ router.get('/me', async (req, res) => {
   res.json(await loadMe(req.user.id));
 });
 
-// Update any profile fields. `interests` replaces the full list (names; new ones are created).
+// Update any profile fields. `interests` replaces the full list of names: one that matches an
+// interest in any case or spacing reuses it, and a new one becomes a custom interest (lib/interests.js).
 router.patch('/me', async (req, res) => {
   const b = req.body;
   const fields = {
@@ -80,7 +82,7 @@ router.patch('/me', async (req, res) => {
   if (fields.relationship_status && !RELATIONSHIP_STATUSES.includes(fields.relationship_status)) {
     throw badRequest('VALIDATION_ERROR', `Relationship status must be one of: ${RELATIONSHIP_STATUSES.join(', ')}.`);
   }
-  const interests = readTextList(b.interests, 'Interests', { minItems: 1, maxItems: 15, maxLength: 40 });
+  const interests = readInterestNames(b.interests);
 
   const columns = Object.keys(fields).filter((k) => fields[k] !== undefined);
   await withTransaction(async (client) => {
@@ -94,29 +96,6 @@ router.patch('/me', async (req, res) => {
   });
   res.json(await loadMe(req.user.id));
 });
-
-async function replaceInterests(client, userId, names) {
-  const ids = [];
-  for (const name of names) {
-    // Reuse an existing interest regardless of capitalisation.
-    const { rows: [row] } = await client.query(
-      `INSERT INTO interests (name) VALUES ($1)
-       ON CONFLICT ((lower(name))) DO UPDATE SET name = interests.name
-       RETURNING id`,
-      [name],
-    );
-    ids.push(row.id);
-  }
-  await client.query('DELETE FROM user_interests WHERE user_id = $1 AND NOT (interest_id = ANY($2))', [userId, ids]);
-  // Existing interests keep their original added_at (so "top 2" stays stable); new ones go last, in order.
-  await client.query(
-    `INSERT INTO user_interests (user_id, interest_id, added_at)
-     SELECT $1, t.id, clock_timestamp() + t.ord * interval '1 millisecond'
-     FROM unnest($2::bigint[]) WITH ORDINALITY AS t(id, ord)
-     ON CONFLICT (user_id, interest_id) DO NOTHING`,
-    [userId, ids],
-  );
-}
 
 router.patch('/me/active-group', async (req, res) => {
   const groupId = parseId(req.body.groupId, 'groupId');

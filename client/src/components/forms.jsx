@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import { GENDERS, RELATIONSHIP_LABELS, TRAIT_SUGGESTIONS } from '../format.js';
 import Avatar from './Avatar.jsx';
@@ -96,25 +96,48 @@ export function EditProfileForm({ me, onSaved }) {
   );
 }
 
-// "+ Add" interest: type a new one or pick from existing interests.
+// Interests match without regard to case or spacing, like the server (server/src/lib/interests.js):
+// "Rock Climbing" and "rock  climbing " are the same interest.
+const tidyInterest = (text) => text.replace(/\s+/g, ' ').trim();
+const interestKey = (text) => tidyInterest(text).toLowerCase();
+
+// "+ Add" interest: pick one from the interest picker or type your own. One you type that nobody has
+// yet goes on your profile only; it joins everyone's picker once enough people have it.
 export function AddInterestForm({ current, onAdd }) {
   const [all, setAll] = useState([]);
+  const [threshold, setThreshold] = useState(10);
   const [text, setText] = useState('');
   const [showAll, setShowAll] = useState(false); // 8 suggestions, then "More"
   const { busy, error, run } = useAsyncAction();
+  const inputId = useId();
   useEffect(() => {
-    api('/interests').then((d) => setAll(d.interests)).catch(() => {});
+    api('/interests').then((d) => {
+      setAll(d.interests);
+      if (d.pickerThreshold) setThreshold(d.pickerThreshold);
+    }).catch(() => {});
   }, []);
-  const have = new Set(current.map((i) => i.name.toLowerCase()));
-  const q = text.trim().toLowerCase();
-  const suggestions = all.filter((i) => !have.has(i.name.toLowerCase()) && (!q || i.name.toLowerCase().includes(q)));
-  const add = (name) => run(() => onAdd(name));
+  const have = new Map(current.map((i) => [interestKey(i.name), i]));
+  const typed = tidyInterest(text);
+  const q = typed.toLowerCase();
+  const already = q ? have.get(q) : undefined;
+  // The picker's spelling when what's typed is one of its interests ("pickleball " -> "Pickleball").
+  const name = all.find((i) => interestKey(i.name) === q)?.name ?? typed;
+  const suggestions = all.filter((i) => !have.has(interestKey(i.name)) && (!q || interestKey(i.name).includes(q)));
+  // Clears the box once it's saved (it stays, with the error, if saving fails).
+  const add = (n) => run(async () => { await onAdd(n); setText(''); });
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (q) add(text.trim()); }}>
+    <form onSubmit={(e) => { e.preventDefault(); if (q && !already) add(name); }}>
       <FormError error={error} />
-      <Field label="Interest">
-        <input value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Pickleball" maxLength={40} />
-      </Field>
+      <div className="field">
+        <label className="field__label" htmlFor={inputId}>Interest</label>
+        <input
+          id={inputId} value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Pickleball" maxLength={40}
+          aria-describedby={`${inputId}-hint`}
+        />
+        <p id={`${inputId}-hint`} className="hint interest-hint">
+          Don't see yours? Type it in. It goes on your profile right away, and everyone can pick it once {threshold} people have added it.
+        </p>
+      </div>
       <div className="chips" style={{ marginBottom: 16 }}>
         {suggestions.slice(0, showAll || q ? 30 : 8).map((i) => (
           <button key={i.id} type="button" className="chip chip--gray" disabled={busy} onClick={() => add(i.name)}>
@@ -125,8 +148,8 @@ export function AddInterestForm({ current, onAdd }) {
           <button type="button" className="chip chip--dashed" onClick={() => setShowAll(true)}>More</button>
         )}
       </div>
-      <button className="btn btn--primary btn--block" disabled={busy || !q}>
-        {busy ? 'Adding…' : q ? `Add "${text.trim()}"` : 'Type or pick an interest'}
+      <button className="btn btn--primary btn--block interest-add" disabled={busy || !q || Boolean(already)}>
+        {busy ? 'Adding…' : already ? 'Already on your profile' : q ? `Add "${name}"` : 'Type or pick an interest'}
       </button>
     </form>
   );

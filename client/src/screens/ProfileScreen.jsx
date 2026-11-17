@@ -21,8 +21,11 @@ export default function ProfileScreen({ me, setMe, refreshMe, onSwitchGroup, onS
     return updated;
   };
   const addInterest = async (name) => {
-    await saveInterests([...interests.map((i) => i.name), name]);
-    toast(`Added ${name}.`);
+    const before = new Set(interests.map((i) => i.id));
+    const updated = await saveInterests([...interests.map((i) => i.name), name]);
+    // The saved spelling: typing "rock climbing" when "Rock Climbing" exists adds "Rock Climbing".
+    const added = updated.interests.find((i) => !before.has(i.id));
+    toast(`Added ${added?.name ?? name}.`);
   };
   const removeInterest = async (interest) => {
     try {
