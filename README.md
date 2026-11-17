@@ -275,7 +275,25 @@ Accounts are **Supabase Auth** users (email + password). New visitors see **Sign
 - **Back to where you were:** opening any app page while signed out, such as a link to `#/messages/7`, goes to Sign in as `#/signin?next=/messages/7`. Signing in, or switching to Sign up from there, returns to that page. The same happens when a session expires. A bare URL with no page shows Sign up (new visitors), Log out goes to plain Sign in, and `next` only accepts aura's own pages (`/find`, `/messages`, `/messages/<id>`, `/profile`).
 - **Supabase settings:** Authentication → Sign In / Providers → Email has **Confirm email off** (Supabase's built-in email is limited to a few messages an hour) and a minimum password length of 8.
 
-**Demo accounts.** Every seeded user can sign in. All 16 share one password, which Julian sends to the team privately. It is **never** in this repo, because the repo is public. Groups below are from fresh seed data; the live database may have changed since.
+**Live demo accounts (Find Friends App, as of 2026-11-16).** The shared database was cleared on 2026-11-16 for the live demo: only Team Aura (David Medina and Julian Miles) and Avery Hansen's Tuesday Crew are left from before. Seven demo groups were added (41 people, each with photos and a group photo). Everyone signs in as `<first name>@example.com`; the passwords are shared privately by Julian and are **never** in this repo, because the repo is public. The demo logins are created with a one-off script Julian runs (it asks for the password and doesn't store it); they aren't made by the seed.
+
+| Group | Owner (sign in as) | Members (`@example.com`) | City |
+|---|---|---|---|
+| Tuesday Crew | `avery` (Avery Hansen, app admin) | - | Provo |
+| Team Aura | `david` (David Medina) | `julian` | Provo |
+| The Rebellion | `leia` | `luke`, `han`, `chewbacca`, `obiwan`, `yoda`, `r2d2`, `c3po` | Yavin 4 |
+| The Avengers | `steve` | `bruce` (Bruce Banner), `tony`, `thor`, `natasha`, `clint` | New York City |
+| The Beatles | `john` | `paul`, `george`, `ringo` | Liverpool |
+| SELECT * FROM Fun (IS professors) | `greg` | `laura`, `spencer`, `merrill` | Provo |
+| The Brethren | `dallin` | `henry`, `todd` | Salt Lake City |
+| Nothing But Net-working (BYU basketball) | `kevin` | `jaxon`, `bruce.branch`, `rob`, `khadim`, `collin` | Provo |
+| Rise & Shout (BYU football) | `kalani` | `keanu`, `bear`, `legend`, `walker`, `therrian`, `faletau`, `cade`, `evan`, `lj` | Provo |
+
+None of the demo groups have matched yet, so the OKR Dashboard starts at 0 until groups Connect and chat. Avery is an app admin, so their **Pass** on Find sends a group to the back of the list instead of hiding it ([Admins can keep browsing Find](#okr-metrics)).
+
+> **Don't run `npm run db:reset` on the shared database before the demo.** It deletes all of the above and puts back the 16 seed users below.
+
+**Seed accounts (`db/seed.sql`, only after a reset or on your own local database).** `npm run db:reset` creates these 16 people; `npm run db:demo-accounts` then gives each a login with `DEMO_PASSWORD`. They are **not** on the live database anymore, so the `verify:*` scripts that sign in as them (`ben@`, `maya@`, `grace@`, …) only work on a local or freshly reset database.
 
 | # | Email | Signs in as | Active group | Also in | Good for |
 |---|---|---|---|---|---|
@@ -298,7 +316,7 @@ Accounts are **Supabase Auth** users (email + password). New visitors see **Sign
 
 To see onboarding, sign up as someone new. The `verify:*` scripts sign in as these accounts with `DEMO_PASSWORD` from `server/.env`.
 
-**Setting them up (already done for Find Friends App):**
+**Setting up the seed logins (on a reset or local database):**
 1. Run `npm run db:migrate`. Migration `003_auth_users.sql` adds `users.auth_user_id`.
 2. Run [`db/migrations/003_auth_users.sql`](db/migrations/003_auth_users.sql) once more in Supabase → SQL Editor. Supabase only lets the `postgres` login reference `auth.users`, so this is what adds the foreign key. The app's own login skips it with a warning.
 3. Put `DEMO_PASSWORD` in `server/.env`, then run `npm run db:demo-accounts`. It creates the 16 logins and links them by id.
