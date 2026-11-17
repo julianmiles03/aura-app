@@ -464,6 +464,7 @@ function ReadBy({ readers, mine }) {
   return (
     <div className={`receipts ${mine ? 'receipts--mine' : ''}`} aria-live="off" title={`Read by ${names}`}>
       <span className="sr-only">Read by {names}</span>
+      <span className="receipts__label" aria-hidden="true">Seen</span>
       {readers.slice(0, MAX_RECEIPT_AVATARS).map((r) => <Avatar key={r.id} initials={r.initials} color={r.avatarColor} size={20} src={r.photoUrl} personId={r.id} />)}
       {extra > 0 && <span aria-hidden="true">+{extra}</span>}
     </div>
