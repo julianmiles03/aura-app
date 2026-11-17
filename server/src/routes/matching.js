@@ -13,22 +13,32 @@ const router = Router();
 
 router.get('/recommendations', requireGroup, async (req, res) => {
   const groupId = actingGroupId(req, req.query.groupId);
+  // App admins (users.is_admin) can always browse every group: a group they passed on stays in
+  // the list, after the rest, oldest pass first. Everyone else never sees a passed group again.
+  const passesCycle = req.user.is_admin === true;
   // Exclude the user's own groups and any group the active group already liked, passed or matched.
   const { rows } = await query(
-    `SELECT fg.id FROM friend_groups fg
+    `SELECT fg.id, l.created_at AS passed_at FROM friend_groups fg
+     LEFT JOIN group_likes l ON l.from_group_id = $1 AND l.to_group_id = fg.id
      WHERE fg.id <> $1
        AND NOT EXISTS (SELECT 1 FROM group_memberships gm WHERE gm.group_id = fg.id AND gm.user_id = $2)
-       AND NOT EXISTS (SELECT 1 FROM group_likes l WHERE l.from_group_id = $1 AND l.to_group_id = fg.id)
+       AND (l.id IS NULL OR ($3 AND l.decision = 'pass'))
        AND NOT EXISTS (SELECT 1 FROM group_matches mt
                        WHERE mt.group_low_id = LEAST($1::bigint, fg.id) AND mt.group_high_id = GREATEST($1::bigint, fg.id))`,
-    [groupId, req.user.id],
+    [groupId, req.user.id, passesCycle],
   );
-  const stats = await loadRelationshipStats(pool, groupId, rows.map((r) => r.id)); // ranked
+  const fresh = rows.filter((r) => !r.passed_at).map((r) => r.id);
+  const passed = rows.filter((r) => r.passed_at).sort((a, b) => a.passed_at - b.passed_at).map((r) => r.id);
+  const stats = [
+    ...await loadRelationshipStats(pool, groupId, fresh), // ranked
+    ...(await loadRelationshipStats(pool, groupId, passed)).sort((a, b) => passed.indexOf(a.groupId) - passed.indexOf(b.groupId)),
+  ];
   const cards = await loadGroupCards(pool, stats.map((s) => s.groupId), { viewerGroupId: groupId });
   const { rows: [acting] } = await query('SELECT id, name FROM friend_groups WHERE id = $1', [groupId]);
   res.json({
     actingGroup: acting,
     total: cards.length,
+    passesCycle,
     recommendations: cards.map((card, i) => ({ ...card, stats: stats[i] })),
   });
 });
@@ -38,7 +48,9 @@ router.post('/groups/:id/likes', requireGroup, async (req, res) => {
   const fromGroupId = actingGroupId(req, req.params.id);
   const toGroupId = parseId(req.body.toGroupId, 'toGroupId');
   const result = await withTransaction((client) =>
-    recordDecision(client, { fromGroupId, toGroupId, userId: req.user.id, decision: req.body.decision }),
+    recordDecision(client, {
+      fromGroupId, toGroupId, userId: req.user.id, decision: req.body.decision, requeuePass: req.user.is_admin === true,
+    }),
   );
   if (result.chatId) queueSuggestions(result.chatId); // a new match: the AI writes its openers in the background
   const [chat] = result.chatId

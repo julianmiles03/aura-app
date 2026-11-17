@@ -68,7 +68,12 @@ export default function FindScreen({ me, onSwitchGroup, refreshMe, isDesktop = f
       } else if (decision === 'connect') {
         toast(`Sent for ${data.actingGroup.name}! If ${current.name} connects back, you'll all get a group chat.`);
       }
-      setIndex((i) => i + 1);
+      if (decision === 'pass' && data.passesCycle) {
+        // Admins: the passed group goes to the back of the list, so they can keep browsing every group.
+        setData((d) => ({ ...d, recommendations: [...d.recommendations.filter((g) => g.id !== current.id), current] }));
+      } else {
+        setIndex((i) => i + 1);
+      }
     } catch (err) {
       // Someone else in the group already decided on this one: just move on.
       if (['ALREADY_DECIDED', 'ALREADY_MATCHED'].includes(err.code)) setIndex((i) => i + 1);
