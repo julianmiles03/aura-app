@@ -56,7 +56,7 @@ export function SignUp({ next }) {
               </Field>
             </div>
             <Field label="City">
-              <input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo, UT" autoComplete="address-level2" />
+              <input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo" autoComplete="address-level2" />
             </Field>
             <Field label="Email">
               <input type="email" value={v.email} onChange={set('email')} required autoComplete="email" inputMode="email" />
@@ -136,7 +136,7 @@ export function FinishAccount({ email, onDone, onSignOut }) {
             <Field label="First name"><input value={v.firstName} onChange={set('firstName')} required maxLength={50} autoComplete="given-name" /></Field>
             <Field label="Last name"><input value={v.lastName} onChange={set('lastName')} required maxLength={50} autoComplete="family-name" /></Field>
           </div>
-          <Field label="City"><input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo, UT" /></Field>
+          <Field label="City"><input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo" /></Field>
           <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Saving…' : 'Continue'}</button>
           <button type="button" className="btn btn--outline btn--block auth-cancel" onClick={onSignOut}>Cancel</button>
         </form>

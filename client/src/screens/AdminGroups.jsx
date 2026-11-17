@@ -147,7 +147,7 @@ function NewGroupSheet({ onClose }) {
           <input value={v.name} onChange={set('name')} required maxLength={60} autoComplete="off" />
         </Field>
         <Field label="City">
-          <input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo, UT" autoComplete="off" />
+          <input value={v.city} onChange={set('city')} required maxLength={80} placeholder="Provo" autoComplete="off" />
         </Field>
         <fieldset className="admin-owner" ref={ownerRef} aria-describedby={ownerError ? ownerErrorId : undefined}>
           <legend className="field__label">Owner</legend>

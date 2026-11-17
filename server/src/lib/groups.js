@@ -114,7 +114,8 @@ export async function loadRelationshipStats(db, viewerGroupId, candidateIds) {
            AND m.user_id IN (SELECT user_id FROM second_degree)
            AND m.user_id NOT IN (SELECT user_id FROM first_degree)
            AND m.user_id NOT IN (SELECT user_id FROM viewer_members)) AS second_degree_friends,
-       (c.city = v.city) AS same_city,
+       -- Same city ignores case, spaces and anything after a comma, so "Provo" matches "provo, UT".
+       (lower(btrim(split_part(c.city, ',', 1))) = lower(btrim(split_part(v.city, ',', 1)))) AS same_city,
        round((3958.8 * 2 * asin(sqrt(
          power(sin(radians(c.latitude - v.latitude) / 2), 2) +
          cos(radians(v.latitude)) * cos(radians(c.latitude)) *
