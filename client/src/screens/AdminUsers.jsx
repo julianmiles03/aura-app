@@ -273,7 +273,7 @@ function UserFormSheet({ user, onClose, onSaved }) {
           </AdminField>
         </div>
         <AdminField id={id('city')} label="City" error={errors.city} count={v.city.length} max={LIMITS.city}>
-          <input {...inputProps('city')} maxLength={LIMITS.city} placeholder="Provo, UT" autoComplete="off" />
+          <input {...inputProps('city')} maxLength={LIMITS.city} placeholder="Provo" autoComplete="off" />
         </AdminField>
         <div className="field-row">
           <AdminField id={id('age')} label="Age (optional)" error={errors.age} hint="18 to 120">

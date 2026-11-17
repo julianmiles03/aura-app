@@ -16,22 +16,22 @@ TRUNCATE
 -- Users (active_group_id is set after memberships exist)
 -- ---------------------------------------------------------------------------
 INSERT INTO users (id, first_name, last_name, city, bio, age, gender, relationship_status, personality_traits, avatar_color) VALUES
-  (1,  'Avery',  'Hansen', 'Provo, UT', 'Always down for a late-night taco run or a sunrise hike. Looking for a crew that actually follows through on plans.', 21, 'Woman', 'single', '{Outgoing,Planner}', '#FDDCCB'),
-  (2,  'Ben',    'Kim',    'Provo, UT', 'Board game collector. I will teach you any game in under five minutes.', 22, 'Man', 'single', '{Chill,Funny}', '#DCEBFD'),
-  (3,  'Chloe',  'Martin', 'Provo, UT', 'Setter on Wednesdays, baker on Sundays.', 20, 'Woman', 'in_a_relationship', '{Competitive,Warm}', '#DDF3E0'),
-  (4,  'Diego',  'Ramos',  'Provo, UT', 'Guitar, tacos, repeat.', 23, 'Man', 'single', '{Easygoing,Creative}', '#F6DCF0'),
-  (5,  'Emma',   'Wright', 'Provo, UT', 'Will review every movie we watch whether you ask or not.', 21, 'Woman', 'single', '{Curious,Introvert}', '#FFF1B8'),
-  (6,  'Finn',   'Taylor', 'Provo, UT', 'Training for a half marathon. Bribe me with tacos.', 22, 'Man', 'married', '{Disciplined,Outgoing}', '#E6E1FF'),
-  (7,  'Maya',   'Patel',  'Provo, UT', 'Climber and amateur photographer. Mornings are for mountains.', 22, 'Woman', 'single', '{Adventurous,Organizer}', '#FDDCCB'),
-  (8,  'Theo',   'Nguyen', 'Provo, UT', 'Host of the most competitive board game nights in Utah County.', 24, 'Man', 'in_a_relationship', '{Funny,Host}', '#DCEBFD'),
-  (9,  'Priya',  'Shah',   'Provo, UT', 'Pickleball by day, sourdough by night.', 21, 'Woman', 'single', '{Upbeat,Planner}', '#DDF3E0'),
-  (10, 'Sam',    'Jensen', 'Provo, UT', 'Will bring a guitar to any hike.', 23, 'Nonbinary', 'prefer_not_to_say', '{Chill,Creative}', '#F6DCF0'),
-  (11, 'Jordan', 'Reyes',  'Orem, UT',  'Bouldering most nights. Taco Tuesday loyalist.', 22, 'Man', 'single', '{Adventurous,Easygoing}', '#FFF1B8'),
-  (12, 'Lena',   'Novak',  'Provo, UT', 'Runner, cinephile, board game rules lawyer.', 21, 'Woman', 'single', '{Curious,Competitive}', '#E6E1FF'),
-  (13, 'Grace',  'Lee',    'Orem, UT',  'Organizer of Court Crew. Always taking photos.', 24, 'Woman', 'married', '{Organizer,Outgoing}', '#DDF3E0'),
-  (14, 'Eli',    'Brooks', 'Orem, UT',  'New route idea every week.', 23, 'Man', 'single', '{Energetic,Funny}', '#DCEBFD'),
-  (15, 'Noah',   'Carter', 'Orem, UT',  'Karaoke is a sport, change my mind.', 25, 'Man', 'its_complicated', '{Loud,Warm}', '#FDDCCB'),
-  (16, 'Zoe',    'Adams',  'Provo, UT', 'Film minor, volleyball major.', 20, 'Woman', 'single', '{Creative,Chill}', '#F6DCF0');
+  (1,  'Avery',  'Hansen', 'Provo', 'Always down for a late-night taco run or a sunrise hike. Looking for a crew that actually follows through on plans.', 21, 'Woman', 'single', '{Outgoing,Planner}', '#FDDCCB'),
+  (2,  'Ben',    'Kim',    'Provo', 'Board game collector. I will teach you any game in under five minutes.', 22, 'Man', 'single', '{Chill,Funny}', '#DCEBFD'),
+  (3,  'Chloe',  'Martin', 'Provo', 'Setter on Wednesdays, baker on Sundays.', 20, 'Woman', 'in_a_relationship', '{Competitive,Warm}', '#DDF3E0'),
+  (4,  'Diego',  'Ramos',  'Provo', 'Guitar, tacos, repeat.', 23, 'Man', 'single', '{Easygoing,Creative}', '#F6DCF0'),
+  (5,  'Emma',   'Wright', 'Provo', 'Will review every movie we watch whether you ask or not.', 21, 'Woman', 'single', '{Curious,Introvert}', '#FFF1B8'),
+  (6,  'Finn',   'Taylor', 'Provo', 'Training for a half marathon. Bribe me with tacos.', 22, 'Man', 'married', '{Disciplined,Outgoing}', '#E6E1FF'),
+  (7,  'Maya',   'Patel',  'Provo', 'Climber and amateur photographer. Mornings are for mountains.', 22, 'Woman', 'single', '{Adventurous,Organizer}', '#FDDCCB'),
+  (8,  'Theo',   'Nguyen', 'Provo', 'Host of the most competitive board game nights in Utah County.', 24, 'Man', 'in_a_relationship', '{Funny,Host}', '#DCEBFD'),
+  (9,  'Priya',  'Shah',   'Provo', 'Pickleball by day, sourdough by night.', 21, 'Woman', 'single', '{Upbeat,Planner}', '#DDF3E0'),
+  (10, 'Sam',    'Jensen', 'Provo', 'Will bring a guitar to any hike.', 23, 'Nonbinary', 'prefer_not_to_say', '{Chill,Creative}', '#F6DCF0'),
+  (11, 'Jordan', 'Reyes',  'Orem',  'Bouldering most nights. Taco Tuesday loyalist.', 22, 'Man', 'single', '{Adventurous,Easygoing}', '#FFF1B8'),
+  (12, 'Lena',   'Novak',  'Provo', 'Runner, cinephile, board game rules lawyer.', 21, 'Woman', 'single', '{Curious,Competitive}', '#E6E1FF'),
+  (13, 'Grace',  'Lee',    'Orem',  'Organizer of Court Crew. Always taking photos.', 24, 'Woman', 'married', '{Organizer,Outgoing}', '#DDF3E0'),
+  (14, 'Eli',    'Brooks', 'Orem',  'New route idea every week.', 23, 'Man', 'single', '{Energetic,Funny}', '#DCEBFD'),
+  (15, 'Noah',   'Carter', 'Orem',  'Karaoke is a sport, change my mind.', 25, 'Man', 'its_complicated', '{Loud,Warm}', '#FDDCCB'),
+  (16, 'Zoe',    'Adams',  'Provo', 'Film minor, volleyball major.', 20, 'Woman', 'single', '{Creative,Chill}', '#F6DCF0');
 
 -- Demo logins (Supabase Auth) survive a reset but lose their link: run npm run db:demo-accounts afterwards.
 
@@ -97,11 +97,11 @@ INSERT INTO friendships (user_low_id, user_high_id) VALUES
 -- Friend groups and memberships
 -- ---------------------------------------------------------------------------
 INSERT INTO friend_groups (id, name, city, latitude, longitude, photo_label, avatar_color, invite_code, created_by) VALUES
-  (1, 'Tuesday Crew',         'Provo, UT', 40.233800, -111.658500, 'Group photo', '#E6E1FF', 'TUESDAY1', 1),
-  (2, 'Wednesday Volleyball', 'Provo, UT', 40.249000, -111.649300, 'Group photo', '#DDF3E0', 'SPIKE010', 3),
-  (3, 'Sunday Summit Club',   'Provo, UT', 40.250500, -111.645000, 'Group photo', '#DCEBFD', 'SUMMIT77', 7),
-  (4, 'Court Crew',           'Orem, UT',  40.296900, -111.694600, 'Group photo', '#FDDCCB', 'COURTS55', 13),
-  (5, 'Film Fridays',         'Provo, UT', 40.240000, -111.640000, 'Group photo', '#F6DCF0', 'REEL2026', 8);
+  (1, 'Tuesday Crew',         'Provo', 40.233800, -111.658500, 'Group photo', '#E6E1FF', 'TUESDAY1', 1),
+  (2, 'Wednesday Volleyball', 'Provo', 40.249000, -111.649300, 'Group photo', '#DDF3E0', 'SPIKE010', 3),
+  (3, 'Sunday Summit Club',   'Provo', 40.250500, -111.645000, 'Group photo', '#DCEBFD', 'SUMMIT77', 7),
+  (4, 'Court Crew',           'Orem',  40.296900, -111.694600, 'Group photo', '#FDDCCB', 'COURTS55', 13),
+  (5, 'Film Fridays',         'Provo', 40.240000, -111.640000, 'Group photo', '#F6DCF0', 'REEL2026', 8);
 
 INSERT INTO group_memberships (group_id, user_id, role, joined_at) VALUES
   (1, 1, 'owner', now() - interval '120 days'), (1, 2, 'member', now() - interval '118 days'),

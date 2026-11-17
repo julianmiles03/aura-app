@@ -415,7 +415,7 @@ export function ManageGroupForm({ group, myId, onSaved, onLeft, onChanged }) {
           onChange={(v) => { setCity(v); setFieldErrors((f) => ({ ...f, city: null })); }}
           max={GROUP_CITY_MAX}
           error={fieldErrors.city}
-          placeholder="e.g. Provo, UT"
+          placeholder="e.g. Provo"
           hint="Find shows groups in the same city first."
         />
         <button className="btn btn--primary btn--block" disabled={details.busy}>{details.busy ? 'Saving…' : 'Save changes'}</button>
