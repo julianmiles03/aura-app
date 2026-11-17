@@ -3,7 +3,10 @@ import { badRequest, conflict, notFound } from '../errors.js';
 // Records one group's decision about another. When both groups have said
 // "connect", creates the match, its chat and the chat's participants.
 // Must run inside a transaction (pass the transaction's client).
-export async function recordDecision(client, { fromGroupId, toGroupId, userId, decision }) {
+// `requeuePass` (app admins): an earlier pass isn't final. Passing again stamps it with the current
+// time (sending that group to the back of the admin's Find list), and Connect replaces it.
+// A connect is still final for everyone.
+export async function recordDecision(client, { fromGroupId, toGroupId, userId, decision, requeuePass = false }) {
   if (!['connect', 'pass'].includes(decision)) {
     throw badRequest('VALIDATION_ERROR', 'decision must be "connect" or "pass".');
   }
@@ -36,7 +39,10 @@ export async function recordDecision(client, { fromGroupId, toGroupId, userId, d
   const { rows: [like] } = await client.query(
     `INSERT INTO group_likes (from_group_id, to_group_id, liked_by_user_id, decision)
      VALUES ($1, $2, $3, $4)
-     ON CONFLICT (from_group_id, to_group_id) DO NOTHING
+     ON CONFLICT (from_group_id, to_group_id) DO ${requeuePass
+       ? `UPDATE SET decision = EXCLUDED.decision, created_at = now(), liked_by_user_id = EXCLUDED.liked_by_user_id
+          WHERE group_likes.decision = 'pass'`
+       : 'NOTHING'}
      RETURNING id, from_group_id, to_group_id, decision, created_at`,
     [fromGroupId, toGroupId, userId, decision],
   );

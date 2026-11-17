@@ -178,6 +178,9 @@ The [OKR Dashboard](#okr-dashboard) shows the KRs from `GET /api/admin/okrs`. Li
 UPDATE users SET is_admin = true WHERE id = <their users.id>;
 ```
 
+**Admins can keep browsing Find.** For an app admin, **Pass** doesn't hide a group for good: it goes to the back of their Find list (passed groups come after the rest, oldest pass first), so they can always look through every group the way a user would. **Connect** still works on a group they passed on. Everyone else's passes are final, as before.
+
+
 Notes:
 - A percentage is empty (`NULL`) instead of an error when its denominator is 0, for example KR3 and KR4 before any group has matched.
 - **Updating an existing database:** schema changes that must keep everyone's other data go in `db/migrations/` as files that are safe to re-run. `npm run db:migrate` runs them all and prints the current KRs. `db/schema.sql` matches the result, so a fresh `npm run db:reset` ends up the same. `001_okr_metrics.sql` adds the OKR table and view; `002_drop_events.sql` removes the events feature (its two tables and their rows); `008_admin.sql` adds `users.is_admin`; `009_admin_login.sql` adds `admin_users` and `admin_sessions` for the admin portal's sign-in. All are applied to Find Friends App.

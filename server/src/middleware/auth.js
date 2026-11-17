@@ -32,7 +32,7 @@ export async function authenticate(req, res, next) {
 // until POST /api/users creates it (the client does that right after sign up).
 export async function identify(req, res, next) {
   const { rows } = await query(
-    'SELECT id, first_name, city, active_group_id FROM users WHERE auth_user_id = $1',
+    'SELECT id, first_name, city, active_group_id, is_admin FROM users WHERE auth_user_id = $1',
     [req.auth.id],
   );
   if (!rows[0]) throw forbidden('NO_PROFILE', 'Finish creating your account first.');
