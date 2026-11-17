@@ -4,6 +4,7 @@ import { GENDERS, RELATIONSHIP_LABELS, TRAIT_SUGGESTIONS } from '../format.js';
 import Avatar from './Avatar.jsx';
 import GroupPhotoField from './GroupPhotoField.jsx';
 import Icon from './Icon.jsx';
+import { PersonButton } from './ProfileViewer.jsx';
 import { Loader } from './Loading.jsx';
 import { Field, FormError, useAsyncAction } from './ui.jsx';
 
@@ -298,7 +299,9 @@ export function InviteFriends({ group: initialGroup, onChanged }) {
         const inGroup = group.members ? group.members.some((m) => m.id === f.id) : f.groupIds.includes(group.id);
         return (
           <div key={f.id} className="person-row">
-            <Avatar initials={f.initials} color={f.avatarColor} size={40} src={f.photoUrl} personId={f.id} />
+            <PersonButton person={f} groupId={inGroup ? group.id : f.groupIds[0]}>
+              <Avatar initials={f.initials} color={f.avatarColor} size={40} src={f.photoUrl} personId={f.id} />
+            </PersonButton>
             <span className="person-row__name">{f.firstName} {f.lastName}</span>
             {inGroup ? (
               <span className="muted-small">In group</span>
@@ -402,7 +405,9 @@ export function ManageGroupForm({ group, myId, onSaved, onLeft, onChanged }) {
         <FormError error={members.error} />
         {currentGroup.members.map((m) => (
           <div key={m.id} className="person-row">
-            <Avatar initials={m.initials} color={m.avatarColor} size={40} src={m.photoUrl} personId={m.id} />
+            <PersonButton person={m} groupId={currentGroup.id}>
+              <Avatar initials={m.initials} color={m.avatarColor} size={40} src={m.photoUrl} personId={m.id} />
+            </PersonButton>
             <span className="person-row__name">{m.firstName} {m.lastName}{m.id === myId && <span className="muted-small"> (you)</span>}</span>
             {m.role === 'owner' && <span className="badge">Owner</span>}
             {isOwner && m.role !== 'owner' && (

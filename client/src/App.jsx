@@ -202,7 +202,7 @@ export default function App() {
         </div>
       </div>
     ) : (
-      <Loader label="Loading…" />
+      <Loader label="Loading…" slowHint="The aura server sleeps when nobody's using it and takes up to a minute to start. Hang tight." />
     );
   } else if (!me.onboarding.profileComplete) {
     content = <ProfileSetup me={me} setMe={setMe} refreshMe={refreshMe} />;

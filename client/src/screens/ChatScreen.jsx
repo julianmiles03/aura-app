@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import Avatar, { GroupPair, GroupPairSkeleton } from '../components/Avatar.jsx';
 import Icon from '../components/Icon.jsx';
 import { LoadingStatus, Skeleton } from '../components/Loading.jsx';
+import { PersonButton } from '../components/ProfileViewer.jsx';
 import { FormError, Sheet } from '../components/ui.jsx';
 import { formatDay, formatTime, plural } from '../format.js';
 import { canRetry, friendlyError } from '../friendlyError.js';
@@ -271,6 +272,8 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
   if (!data) return <ChatSkeleton embedded={embedded} />;
 
   const { chat, messages, participants } = data;
+  // Which group each person is in here, to look up their profile (someone who left has none).
+  const groupOf = new Map(participants.map((p) => [p.id, p.groupId]));
   return (
     <div className={`chat-screen ${embedded ? 'chat-screen--embedded' : ''}`}>
       <header className="chat-head">
@@ -303,7 +306,11 @@ export default function ChatScreen({ chatId, refreshMe, embedded = false, onActi
               <div className={`msg ${m.mine ? 'msg--mine' : ''}`}>
                 <span className="sr-only">{m.mine ? 'You' : m.sender?.firstName ?? 'Former member'}: </span>
                 {!m.mine && (showSender && m.sender
-                  ? <Avatar initials={m.sender.initials} color={m.sender.avatarColor} size={36} src={m.sender.photoUrl} personId={m.sender.id} />
+                  ? (
+                    <PersonButton person={m.sender} groupId={groupOf.get(m.sender.id)} className="person-btn--pad">
+                      <Avatar initials={m.sender.initials} color={m.sender.avatarColor} size={36} src={m.sender.photoUrl} personId={m.sender.id} />
+                    </PersonButton>
+                  )
                   : <span className="msg__spacer" />)}
                 <div className="msg__bubble">{m.body}</div>
                 <span className="msg__time">{formatTime(m.createdAt)}</span>
