@@ -556,6 +556,14 @@ h1, h2, h3 { font-family: var(--font-head); margin: 0; letter-spacing: -0.02em; 
 .checklist__box { width: 22px; height: 22px; flex: none; border-radius: 50%; border: 2px solid #cfccdb; display: grid; place-items: center; }
 .checklist__done { color: var(--muted); }
 .checklist__done .checklist__box { background: var(--accent); border-color: var(--accent); color: #fff; }
+.setup-section { scroll-margin-top: 16px; }
+.setup-section:focus { outline: none; }
+.setup-section:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.setup-todo { background: var(--accent-soft); color: var(--accent-ink); border-radius: 14px; padding: 12px 14px; font-weight: 600; margin: 4px 0 14px; }
+.setup-todo p { margin: 0; }
+.setup-todo ul { list-style: none; margin: 4px 0 -8px; padding: 0; display: flex; flex-wrap: wrap; gap: 0 16px; }
+.setup-todo .link-btn { color: var(--accent-ink); text-decoration: underline; font-weight: 700; }
+.setup-hint { text-align: center; }
 .chats-more { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 10px 0 0; color: var(--muted); font-size: 15px; }
 .chat-list { background: var(--card); border-radius: var(--radius-card); overflow: hidden; }
 .chat-row {

@@ -573,7 +573,7 @@ A group's **owner** can upload, replace or remove the group photo in **Profile â
 A new person can't reach Find, Messages or Profile until they have a complete profile and a group (business rules 1 and 4):
 
 1. **Sign up** (name, city, email, password) creates the Supabase login and the `users` row.
-2. **Build your profile** (step 1 of 2): a photo, an interest, a short bio, age, gender, relationship status and a personality trait. A checklist ticks off as each one is done. Until then, creating or joining a group answers `403 PROFILE_INCOMPLETE`.
+2. **Build your profile** (step 1 of 2): a photo, an interest, a short bio, age, gender, relationship status and a personality trait. A checklist ticks off as each one is done: the About you fields tick as you type, photos and interests once they're added. Pressing **Save and continue** with something still missing saves what's there and says exactly what's left, with links to Photos and Interests. Until then, creating or joining a group answers `403 PROFILE_INCOMPLETE`.
 3. **One more thing** (step 2 of 2): "You need to be in a friend group before you can use aura", with **Create a group** and **Join with code**. Every group-scoped endpoint answers `403 NO_GROUP` until then. Creating a group goes to an **Invite your friends** screen (code, link, add friends), then into the app.
 
 **Joining by code.** People can type the code or paste the whole invite link; spaces, dashes and lower case don't matter (`summit-77` works). Errors show under the field and are announced to screen readers:

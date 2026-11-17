@@ -5,27 +5,59 @@ import PhotoGrid from '../components/PhotoGrid.jsx';
 import { AddInterestForm, CreateOrJoinForm, InviteFriends, ProfileFields, profileFormValue, profilePatch } from '../components/forms.jsx';
 import { FormError, useAsyncAction } from '../components/ui.jsx';
 
-// What a complete profile needs, as a checklist that ticks off as you go (server: me.onboarding.missing).
+// What a complete profile needs, as a checklist that ticks off as you go (server: getOnboarding in
+// server/src/lib/profile.js). `section` is where on this page to fill it in.
 const CHECKLIST = [
-  { label: 'A photo', fields: ['photos'] },
-  { label: 'An interest', fields: ['interests'] },
-  { label: 'A short bio', fields: ['bio'] },
-  { label: 'Age, gender and relationship status', fields: ['age', 'gender', 'relationshipStatus'] },
-  { label: 'A personality trait', fields: ['personalityTraits'] },
+  { label: 'A photo', todo: 'add a photo', fields: ['photos'], section: 'setup-photos' },
+  { label: 'An interest', todo: 'add an interest', fields: ['interests'], section: 'setup-interests' },
+  { label: 'A short bio', todo: 'write a short bio', fields: ['bio'], section: 'setup-about' },
+  { label: 'Age, gender and relationship status', todo: 'fill in your age, gender and relationship status', fields: ['age', 'gender', 'relationshipStatus'], section: 'setup-about' },
+  { label: 'A personality trait', todo: 'pick a personality trait', fields: ['personalityTraits'], section: 'setup-about' },
 ];
+
+// What's still missing right now: photos and interests save as soon as they're added, so they come
+// from the server; the About you fields come from the form, so they tick as you type.
+function liveMissing(value, me) {
+  const missing = [];
+  if (me.photos.length < 1) missing.push('photos');
+  if (me.interests.length < 1) missing.push('interests');
+  if (!value.bio.trim()) missing.push('bio');
+  if (value.age === '' || !Number(value.age)) missing.push('age');
+  if (!value.gender) missing.push('gender');
+  if (!value.relationshipStatus) missing.push('relationshipStatus');
+  if (value.personalityTraits.length < 1) missing.push('personalityTraits');
+  return missing;
+}
+
+const listText = (items) => (items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`);
+
+function goTo(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  el.focus({ preventScroll: true });
+}
 
 // Step 1: build the profile (rule 1).
 export function ProfileSetup({ me, setMe, refreshMe }) {
   const [value, setValue] = useState(() => profileFormValue(me.user));
   const { busy, error, run } = useAsyncAction();
-  const missing = me.onboarding.missing;
+  // Set when Save is pressed with things still to do; cleared once they're all done.
+  const [showTodo, setShowTodo] = useState(false);
+  const missing = liveMissing(value, me);
+  const todo = CHECKLIST.filter((item) => item.fields.some((f) => missing.includes(f)));
 
   const addInterest = async (name) => {
     setMe(await api('/me', { method: 'PATCH', body: { interests: [...me.interests.map((i) => i.name), name] } }));
   };
   const save = (e) => {
     e.preventDefault();
-    run(async () => setMe(await api('/me', { method: 'PATCH', body: profilePatch(value) })));
+    // Save what's there either way, so nothing typed is lost; the server decides when the profile is complete.
+    run(async () => {
+      const next = await api('/me', { method: 'PATCH', body: profilePatch(value) });
+      setShowTodo(!next.onboarding.profileComplete);
+      setMe(next);
+    });
   };
 
   return (
@@ -45,13 +77,13 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
         })}
       </ul>
 
-      <section className="card">
+      <section className="card setup-section" id="setup-photos" tabIndex={-1}>
         <h2 className="card__title">Photos</h2>
         <p className="hint photos__intro">A main photo, plus up to 3 more.</p>
         <PhotoGrid photos={me.photos} ownerName={me.user.firstName} ownerId={me.user.id} avatarColor={me.user.avatarColor} onChanged={refreshMe} />
       </section>
 
-      <section className="card">
+      <section className="card setup-section" id="setup-interests" tabIndex={-1}>
         <h2 className="card__title">Interests</h2>
         {me.interests.length > 0 && (
           <div className="chips" style={{ marginBottom: 14 }}>
@@ -61,12 +93,29 @@ export function ProfileSetup({ me, setMe, refreshMe }) {
         <AddInterestForm current={me.interests} onAdd={addInterest} />
       </section>
 
-      <section className="card">
+      <section className="card setup-section" id="setup-about" tabIndex={-1}>
         <h2 className="card__title">About you</h2>
         <form onSubmit={save}>
           <FormError error={error} />
           <ProfileFields value={value} onChange={setValue} />
+          {showTodo && todo.length > 0 && (
+            <div className="setup-todo" role="alert">
+              <p>Saved. To finish your profile, {listText(todo.map((item) => item.todo))}.</p>
+              <ul>
+                {todo.filter((item) => item.section !== 'setup-about').map((item) => (
+                  <li key={item.label}>
+                    <button type="button" className="link-btn" onClick={() => goTo(item.section)}>
+                      Go to {item.section === 'setup-photos' ? 'Photos' : 'Interests'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <button className="btn btn--primary btn--block" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</button>
+          {!showTodo && todo.length > 0 && (
+            <p className="hint setup-hint">Still to do: {listText(todo.map((item) => item.label.toLowerCase()))}.</p>
+          )}
         </form>
       </section>
     </div>
