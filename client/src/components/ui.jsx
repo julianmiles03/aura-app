@@ -6,11 +6,17 @@ export function Sheet({ title, onClose, children }) {
   const panel = useRef(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
-  // Focus the first field once, when the sheet opens.
+  // Focus the first field once, when the sheet opens (or Close, when it has no fields and nothing
+  // inside already took focus). Escape closes only the top sheet when one is open over another.
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && closeRef.current();
+    const onKey = (e) => {
+      const sheets = document.querySelectorAll('.sheet');
+      if (e.key === 'Escape' && sheets[sheets.length - 1] === panel.current) closeRef.current();
+    };
     window.addEventListener('keydown', onKey);
-    panel.current?.querySelector('input, textarea, select')?.focus();
+    const field = panel.current?.querySelector('input, textarea, select');
+    if (field) field.focus();
+    else if (!panel.current?.contains(document.activeElement)) panel.current?.querySelector('.sheet__head button')?.focus();
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   return (

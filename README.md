@@ -258,6 +258,8 @@ Every push or merge to `main` redeploys both automatically (about a minute); not
 
 Render only asks for secret values like these when a Blueprint is first created. To add or change one on the running service, open **`aura-is401-api` → Environment**, add the variable and save; Render redeploys the API. `https://aura-is401-api.onrender.com/api/health` shows `"aiOpeners": true` once the API has a Gemini key.
 
+**Cold starts.** The API is on Render's free plan, which stops it after about 15 minutes without requests. The next request waits while it starts again: about 20 seconds when we measured it (Render says up to a minute). After that, requests take about 0.1 s. That wait is why the first screen after Sign up (or the first sign-in of the day) can sit on "Loading…". To hide most of it, the app pings `GET /api/health` as soon as the page opens (`wakeApi` in `client/src/api.js`), so the server is starting while someone fills in Sign up. If it's still loading after 4 seconds, the spinner explains that the server is waking up. To remove the wait completely, move `aura-is401-api` to a paid instance type (no spin-down), or have an uptime monitor request `/api/health` every 10 minutes during demos.
+
 ## Sign In and Demo Accounts
 
 Accounts are **Supabase Auth** users (email + password). New visitors see **Sign up**; "Already have an account? Sign in" goes to the separate sign-in page. The admin portal has its own sign-in, described in [Admin Portal Sign-In](#admin-portal-sign-in).
@@ -571,7 +573,7 @@ A group's **owner** can upload, replace or remove the group photo in **Profile �
 A new person can't reach Find, Messages or Profile until they have a complete profile and a group (business rules 1 and 4):
 
 1. **Sign up** (name, city, email, password) creates the Supabase login and the `users` row.
-2. **Build your profile** (step 1 of 2): a photo, an interest, a short bio, age, gender, relationship status and a personality trait. A checklist ticks off as each one is done. Until then, creating or joining a group answers `403 PROFILE_INCOMPLETE`.
+2. **Build your profile** (step 1 of 2): a photo, an interest, a short bio, age, gender, relationship status and a personality trait. A checklist ticks off as each one is done: the About you fields tick as you type, photos and interests once they're added. Pressing **Save and continue** with something still missing saves what's there and says exactly what's left, with links to Photos and Interests. Until then, creating or joining a group answers `403 PROFILE_INCOMPLETE`.
 3. **One more thing** (step 2 of 2): "You need to be in a friend group before you can use aura", with **Create a group** and **Join with code**. Every group-scoped endpoint answers `403 NO_GROUP` until then. Creating a group goes to an **Invite your friends** screen (code, link, add friends), then into the app.
 
 **Joining by code.** People can type the code or paste the whole invite link; spaces, dashes and lower case don't matter (`summit-77` works). Errors show under the field and are announced to screen readers:
@@ -597,6 +599,16 @@ Profile → tap one of **My groups** opens **Manage group** (a sheet on phones, 
 - **Long names** wrap instead of overflowing: group and member names, the sheet title and the full-group notice.
 
 **Try it by hand.** Sign in as Avery → Profile → Tuesday Crew: change the city and save, remove a member, add them back from **Add members**. Sign in as Chloe → Wednesday Volleyball shows the full notice.
+
+## Tap a Photo to See the Profile
+
+Tapping a person's photo opens their profile: main photo, the 3 more (or "No photo yet"), city, bio, age / gender / relationship status, interests and personality. It works in:
+
+- **Find:** the members row on a group's card.
+- **Chats:** the photo next to someone's messages (phone and desktop).
+- **Manage group:** each member, and each friend under **Add members**.
+
+One viewer serves the whole app (`components/ProfileViewer.jsx`): wrap an avatar in `<PersonButton person={...} groupId={...}>` and it loads `GET /api/groups/:groupId/members/:userId/profile`. The profile opens on top of whatever is open (even the Manage group sheet). **Escape** or **×** closes only the profile and puts focus back on the photo you tapped. Each photo is a button labeled "View Maya's profile", with a 44px touch target. Lighthouse Accessibility is 100 on the chat and on Manage group, with and without a profile open (phone and desktop).
 
 ## Decluttered Mobile Screens
 

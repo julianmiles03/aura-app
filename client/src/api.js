@@ -4,6 +4,13 @@ import { supabase } from './supabase.js';
 // Hosted builds call the API on its own origin (set at build time); locally Vite proxies /api.
 const API_BASE = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '');
 
+// Render's free plan stops the API after about 15 idle minutes, and the next request waits
+// ~20-50 s while it starts. Ping it the moment the app opens, so it's starting up while someone
+// reads Sign up or types their password, not after they press the button. Failures don't matter.
+export function wakeApi() {
+  fetch(`${API_BASE}/api/health`).catch(() => {});
+}
+
 export class ApiError extends Error {
   constructor(status, code, message, details) {
     super(message);

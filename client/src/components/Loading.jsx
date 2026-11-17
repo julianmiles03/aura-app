@@ -25,12 +25,22 @@ export function Spinner({ size = 24 }) {
   );
 }
 
-// Spinner and label, for loads whose layout isn't known yet.
-export function Loader({ label, compact = false }) {
+// How long a load can take before `slowHint` (if any) explains the wait.
+const SLOW_AFTER_MS = 4000;
+
+// Spinner and label, for loads whose layout isn't known yet. `slowHint` shows under it if the load
+// is still going after a few seconds (e.g. the hosted API waking up).
+export function Loader({ label, compact = false, slowHint }) {
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    if (!slowHint) return undefined;
+    const timer = setTimeout(() => setSlow(true), SLOW_AFTER_MS);
+    return () => clearTimeout(timer);
+  }, [slowHint]);
   return (
     <div className={`loading ${compact ? 'loading--compact' : ''}`}>
       <Spinner size={compact ? 20 : 30} />
-      <LoadingStatus label={label} visible />
+      <LoadingStatus label={slow ? `${label} ${slowHint}` : label} visible />
     </div>
   );
 }
