@@ -247,7 +247,7 @@ export function CreateOrJoinForm({ onDone, defaultTab = 'create', defaultInviteC
           onChange={(v) => { setCode(readInviteCode(v)); setFieldError(null); setError(null); }}
           error={codeError}
           placeholder="e.g. SUMMIT77"
-          hint="Ask a friend in the group for its code, or paste their invite link."
+          hint="Ask a friend in the group for its code."
         />
       )}
       <button className="btn btn--primary btn--block" disabled={busy}>
