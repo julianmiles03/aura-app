@@ -271,9 +271,6 @@ export function InviteFriends({ group }) {
   };
   return (
     <div>
-      <p className="subtle" style={{ marginTop: 0 }}>
-        Share this code. Friends tap <strong>Join with code</strong> and enter it · {group.memberCount} of 10 members.
-      </p>
       {full && (
         <p className="group-full" role="status">
           <Icon name="users" size={18} />
