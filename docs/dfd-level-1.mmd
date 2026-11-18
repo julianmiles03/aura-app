@@ -1,0 +1,42 @@
+%% Level 1 DFD: aura core workflows. Render with:
+%%   npx @mermaid-js/mermaid-cli@12.2.0 -i docs/dfd-level-1.mmd -o docs/dfd-level-1.png --scale 3 --backgroundColor white
+flowchart TB
+    E1["App Users /<br/>Friend Groups"]:::ext
+    E2["Google Gemini API"]:::ext
+
+    subgraph aura["aura system"]
+        direction TB
+        P1(["1.0<br/>Set Up Profiles<br/>and Groups"]):::proc
+        P2(["2.0<br/>Rank Group<br/>Recommendations"]):::proc
+        P3(["3.0<br/>Record Connect<br/>or Pass"]):::proc
+        P4(["4.0<br/>Create Match<br/>and Chat"]):::proc
+        P5(["5.0<br/>Exchange Chat<br/>Messages"]):::proc
+        D1[("D1 Aura Application Data<br/>(Postgres on Supabase)")]:::store
+    end
+
+    E1 -- "sign-up, profile, photos,<br/>interests, group, invite code" --> P1
+    P1 -- "profile, group and<br/>invite code" --> E1
+    P1 -- "users, photos, interests,<br/>groups, memberships" --> D1
+
+    D1 -- "groups, shared interests,<br/>connections, past decisions" --> P2
+    P2 -- "ranked group cards" --> E1
+
+    E1 -- "Connect or Pass" --> P3
+    D1 -- "other group's earlier Connect" --> P3
+    P3 -- "like or pass" --> D1
+    P3 -- "mutual Connect" --> P4
+
+    D1 -- "both groups' names,<br/>cities, interests" --> P4
+    P4 -- "group names, cities, interests<br/>(no member names or messages)" --> E2
+    E2 -- "raw conversation starters" --> P4
+    P4 -- "match, chat, participants,<br/>checked starters" --> D1
+
+    E1 -- "messages, chosen starter,<br/>typing, We met up!" --> P5
+    D1 -- "chat history, starters,<br/>read times, meetup" --> P5
+    P5 -- "messages, read times,<br/>used starters, meetups" --> D1
+    P5 -- "new messages, receipts,<br/>starters, typing" --> E1
+
+    classDef ext fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    classDef proc fill:#fce7f3,stroke:#db2777,color:#0f172a
+    classDef store fill:#fef3c7,stroke:#d97706,color:#0f172a
+    style aura fill:#f5f3ff,stroke:#6d28d9,color:#0f172a
