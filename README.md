@@ -41,8 +41,8 @@ Each slice works end to end: a screen in the app, an API endpoint, and rows in P
 | 4 | Onboarding gate | A user with no group sees "Create or join a group" instead of the app | any group endpoint → `403 NO_GROUP` | `group_memberships` |
 | 5 | Create a group | Gate or Profile → **Create a group** | `POST /api/groups` | `friend_groups`, `group_memberships`, `users.active_group_id` |
 | 6 | Join with an invite code | Enter a code (or paste the invite link); a wrong code says so under the field, a full group shows "already has 10 members" | `POST /api/groups/join` → `400 INVALID_INVITE_CODE`, `404 INVITE_NOT_FOUND`, `409 GROUP_FULL` | `group_memberships` (`group_member_cap` trigger) |
-| 7 | Invite a friend to your group | Profile → **Invite friends**, or Manage group → **Add members** → pick a friend | `GET /api/me/friends`, `POST /api/groups/:id/members` | `friendships`, `group_memberships`, `chat_participants` |
-| 8 | Manage group | Profile → tap a group: edit name and city, group photo, remove and add members, **Leave group** | `PATCH /api/groups/:id`, `DELETE /api/groups/:id/members/:userId`, `DELETE /api/groups/:id/members/me` | `friend_groups`, `group_memberships`, `chat_participants` |
+| 7 | Invite people to your group | Profile → **Invite friends**, or Manage group → **Add members**: the group's invite code with **Copy code** (aura has no friends list, so people join with the code) | `POST /api/groups/join` (the person joining) | `group_memberships`, `chat_participants` |
+| 8 | Manage group | Profile → tap a group: edit name and city, group photo, remove members, share the invite code, **Leave group** | `PATCH /api/groups/:id`, `DELETE /api/groups/:id/members/:userId`, `DELETE /api/groups/:id/members/me` | `friend_groups`, `group_memberships`, `chat_participants` |
 | 9 | Switch active group | Group switcher on Find, "Chatting as" on Messages, or Profile → a group's **…** → **Make active group** | `PATCH /api/me/active-group` | `users.active_group_id` (composite FK to memberships) |
 | 10 | Find, Connect and Pass | Find shows one ranked group at a time; **Connect** or **Pass** loads the next | `GET /api/recommendations`, `POST /api/groups/:id/likes` | `group_likes`; a mutual Connect creates the match and chat |
 | 11 | Accept or decline a request | Messages → "Groups that liked you" → **Accept** (new chat appears) or decline | `GET /api/groups/:id/incoming-likes`, `POST /api/likes/:id/accept`, `POST /api/likes/:id/decline` | `group_likes`, `group_matches`, `chats`, `chat_participants` in one transaction |
@@ -124,7 +124,7 @@ All four Key Results are computed automatically by the `okr_metrics` view (in [`
 | KR | Table | Event in the app | Try it on the live site (then refresh the admin dashboard) |
 |---|---|---|---|
 | **KR1** | `group_matches` (count), `friend_groups` (out of) | Two groups both tap **Connect**: on Find, or **Accept** in Messages → "Groups that liked you" | Sign in as a member of a group that has no match yet, open Messages → "Groups that liked you" and **Accept** (or Connect on Find with a group that already liked yours). **Connected groups** goes up by 2, or by 1 if the other group was already connected. |
-| **KR2** | `group_memberships` | A 4th member joins a group: invite code, invite link or **Invite friends** | Create a group (1 member), then have 3 friends join it with its invite code. On the 4th, **groups with 4+ people** goes up by 1. A new group also adds 1 to the total, so KR1 and KR2's percentages dip until it grows. |
+| **KR2** | `group_memberships` | A 4th member joins a group with its invite code | Create a group (1 member), then have 3 friends join it with its invite code. On the 4th, **groups with 4+ people** goes up by 1. A new group also adds 1 to the total, so KR1 and KR2's percentages dip until it grows. |
 | **KR3** | `messages` (sender's group from `chat_participants.group_id`) | Both groups in a match send at least one message | Open a match chat where only one side has talked (or a brand-new match) and send a message from each group. When the second group sends, **messaging groups** goes up by 2. |
 | **KR4** | `meetups` | Someone taps **We met up!** in a match chat and confirms | In a match chat that doesn't say "You met up on…", tap **We met up!** → **Yes, we met up**. **Meetup groups** goes up by 2, and both groups see the date in the chat. |
 
@@ -615,7 +615,7 @@ A new person can't reach Find, Messages or Profile until they have a complete pr
 
 1. **Sign up** (name, city, email, password) creates the Supabase login and the `users` row.
 2. **Build your profile** (step 1 of 2): a photo, an interest, a short bio, age, gender, relationship status and a personality trait. A checklist ticks off as each one is done: the About you fields tick as you type, photos and interests once they're added. Pressing **Save and continue** with something still missing saves what's there and says exactly what's left, with links to Photos and Interests. Until then, creating or joining a group answers `403 PROFILE_INCOMPLETE`.
-3. **One more thing** (step 2 of 2): "You need to be in a friend group before you can use aura", with **Create a group** and **Join with code**. Every group-scoped endpoint answers `403 NO_GROUP` until then. Creating a group goes to an **Invite your friends** screen (code, link, add friends), then into the app.
+3. **One more thing** (step 2 of 2): "You need to be in a friend group before you can use aura", with **Create a group** and **Join with code**. Every group-scoped endpoint answers `403 NO_GROUP` until then. Creating a group goes to an **Invite your friends** screen (the invite code with **Copy code**), then into the app.
 
 **Joining by code.** People can type the code or paste the whole invite link; spaces, dashes and lower case don't matter (`summit-77` works). Errors show under the field and are announced to screen readers:
 
@@ -635,11 +635,11 @@ Profile → tap one of **My groups** opens **Manage group** (a sheet on phones, 
 - **Details:** group name (required, up to 60 characters) and city (required, up to 80; Find ranks same-city groups first). Each field shows a live count like "12/60", and a blank one says "Group name can't be empty." under the field before anything is sent. The server checks the same rules (`400 VALIDATION_ERROR`). **Save changes** saves both.
 - **Group photo:** the owner uploads, replaces or removes it (see [Group Photo](#group-photo)); it saves right away.
 - **Members · n of 10:** the owner can **Remove** anyone else (confirmed first); the sheet stays open and the count updates. Others see "Only the group's owner can remove members."
-- **Add members:** the invite code and link, plus **Add** next to each friend. At 10 of 10 it says "*Group* is full (10 of 10)…" and the Add buttons are disabled; the database's `group_member_cap` trigger still rejects an 11th member (`409 GROUP_FULL`) if two people add at once.
+- **Add members:** the invite code with **Copy code**; people join with it under **Join with code**. There's no friends list in aura, so there's no direct Add and no Copy link (a `#/join?code=` link still works if someone has one). At 10 of 10 it says "*Group* is full (10 of 10)…"; the database's `group_member_cap` trigger rejects an 11th member (`409 GROUP_FULL`) even if two people join at once.
 - **Leave group:** confirmed first. If the owner leaves, the longest-standing member becomes the owner (the confirm says who), so someone can still manage the group. The last member leaving deletes the group.
 - **Long names** wrap instead of overflowing: group and member names, the sheet title and the full-group notice.
 
-**Try it by hand.** Sign in as Avery → Profile → Tuesday Crew: change the city and save, remove a member, add them back from **Add members**. Sign in as Chloe → Wednesday Volleyball shows the full notice.
+**Try it by hand.** Sign in as Avery → Profile → Tuesday Crew: change the city and save, remove a member, then have them rejoin with the code from **Add members**. Sign in as Chloe → Wednesday Volleyball shows the full notice.
 
 ## Tap a Photo to See the Profile
 
@@ -647,7 +647,7 @@ Tapping a person's photo opens their profile: main photo, the 3 more (or "No pho
 
 - **Find:** the members row on a group's card.
 - **Chats:** the photo next to someone's messages (phone and desktop).
-- **Manage group:** each member, and each friend under **Add members**.
+- **Manage group:** each member.
 
 One viewer serves the whole app (`components/ProfileViewer.jsx`): wrap an avatar in `<PersonButton person={...} groupId={...}>` and it loads `GET /api/groups/:groupId/members/:userId/profile`. The profile opens on top of whatever is open (even the Manage group sheet). **Escape** or **×** closes only the profile and puts focus back on the photo you tapped. Each photo is a button labeled "View Maya's profile", with a 44px touch target. Lighthouse Accessibility is 100 on the chat and on Manage group, with and without a profile open (phone and desktop).
 
