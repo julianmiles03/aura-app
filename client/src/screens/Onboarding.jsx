@@ -130,7 +130,7 @@ export function NoGroupGate({ refreshMe, inviteCode = '' }) {
       <main className="gate">
         <div className="steps" role="img" aria-label="Step 2 of 2"><span className="on" /><span className="on" /></div>
         <h1 className="page-title" style={{ fontSize: 34 }}>Invite your friends</h1>
-        <p className="subtle">Your group is ready. Share the code or link before you start finding other groups.</p>
+        <p className="subtle">Your group is ready. Share its code so your friends can join before you start finding other groups.</p>
         <section className="card">
           <InviteFriends group={createdGroup} onChanged={setCreatedGroup} />
           <button type="button" className="btn btn--primary btn--block" style={{ marginTop: 18 }} onClick={refreshMe}>Continue to aura</button>
@@ -168,7 +168,7 @@ export function JoinGroupScreen({ refreshMe, inviteCode }) {
   return (
     <main className="gate">
       <h1 className="page-title" style={{ fontSize: 34 }}>Join your friend group</h1>
-      <p className="subtle">Use the invite link your friend shared, then you’ll be ready to find groups together.</p>
+      <p className="subtle">Enter the invite code your friend shared, then you’ll be ready to find groups together.</p>
       <section className="card"><CreateOrJoinForm defaultTab="join" defaultInviteCode={inviteCode} joinOnly onDone={joinDone} /></section>
     </main>
   );
