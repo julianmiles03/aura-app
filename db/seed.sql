@@ -60,7 +60,7 @@ INSERT INTO interests (id, name) VALUES
   (1, 'Hiking'), (2, 'Board games'), (3, 'Tacos'), (4, 'Live music'),
   (5, 'Pickleball'), (6, 'Climbing'), (7, 'Film'), (8, 'Baking'),
   (9, 'Guitar'), (10, 'Running'), (11, 'Volleyball'), (12, 'Photography'),
-  (13, 'Coffee'), (14, 'Cooking'), (15, 'Video games'), (16, 'Karaoke');
+  (13, 'Snowboarding'), (14, 'Cooking'), (15, 'Video games'), (16, 'Karaoke');
 
 INSERT INTO user_interests (user_id, interest_id, added_at)
 SELECT user_id, interest_id, now() - interval '30 days' + ord * interval '1 hour'

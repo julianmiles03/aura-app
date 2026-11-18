@@ -5,7 +5,6 @@ import Avatar from './Avatar.jsx';
 import GroupPhotoField from './GroupPhotoField.jsx';
 import Icon from './Icon.jsx';
 import { PersonButton } from './ProfileViewer.jsx';
-import { Loader } from './Loading.jsx';
 import { Field, FormError, useAsyncAction } from './ui.jsx';
 
 // Profile fields (no photos/interests): used by Edit profile and onboarding.
@@ -258,17 +257,10 @@ export function CreateOrJoinForm({ onDone, defaultTab = 'create', defaultInviteC
   );
 }
 
-export function InviteFriends({ group: initialGroup, onChanged }) {
-  // Kept here so "n of 10" and the full notice update as you add people.
-  const [group, setGroup] = useState(initialGroup);
-  useEffect(() => setGroup(initialGroup), [initialGroup]);
-  const [friends, setFriends] = useState(null);
+export function InviteFriends({ group }) {
+  // aura has no friends list, so people join with the group's invite code.
   const [copied, setCopied] = useState(false);
-  const { busy, error, run } = useAsyncAction();
   const full = group.memberCount >= (group.maxMembers ?? 10);
-  useEffect(() => {
-    api('/me/friends').then((d) => setFriends(d.friends)).catch(() => setFriends([]));
-  }, []);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(group.inviteCode);
@@ -277,71 +269,25 @@ export function InviteFriends({ group: initialGroup, onChanged }) {
       setCopied(false);
     }
   };
-  const inviteLink = `${window.location.origin}${window.location.pathname}#/join?code=${encodeURIComponent(group.inviteCode)}`;
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      setCopied(true);
-    } catch {
-      setCopied(false);
-    }
-  };
-  const add = (friend) => run(async () => {
-    const res = await api(`/groups/${group.id}/members`, { method: 'POST', body: { userId: friend.id } });
-    setFriends((fs) => fs.map((f) => (f.id === friend.id ? { ...f, groupIds: [...f.groupIds, group.id] } : f)));
-    setGroup((g) => ({ ...g, ...res.group }));
-    await onChanged(res.group);
-  });
   return (
     <div>
-      <p className="subtle" style={{ marginTop: 0 }}>Share this link or code. Friends can open the link to join directly.</p>
+      <p className="subtle" style={{ marginTop: 0 }}>
+        Share this code. Friends tap <strong>Join with code</strong> and enter it · {group.memberCount} of 10 members.
+      </p>
       {full && (
         <p className="group-full" role="status">
           <Icon name="users" size={18} />
-          <span><strong>{group.name}</strong> is full (10 of 10). A group can have at most 10 members, so remove someone before adding anyone new.</span>
+          <span><strong>{group.name}</strong> is full (10 of 10). A group can have at most 10 members, so remove someone before anyone new can join.</span>
         </p>
       )}
       <div className="invite-code">
         <span className="invite-code__value">{group.inviteCode}</span>
         <div className="invite-code__actions">
-        <button type="button" className="btn btn--sm btn--outline" onClick={copyLink}>
-          <Icon name={copied ? 'check' : 'link'} size={18} /> {copied ? 'Copied link' : 'Copy link'}
-        </button>
-        <button type="button" className="btn btn--sm btn--outline" onClick={copy}>
-          <Icon name={copied ? 'check' : 'copy'} size={18} /> {copied ? 'Copied' : 'Copy'}
-        </button>
+          <button type="button" className="btn btn--sm btn--outline" onClick={copy} aria-label={`Copy invite code ${group.inviteCode}`}>
+            <Icon name={copied ? 'check' : 'copy'} size={18} /> {copied ? 'Copied' : 'Copy code'}
+          </button>
         </div>
       </div>
-      <h3 className="section-label">Or add a friend directly · {group.memberCount} of 10</h3>
-      <FormError error={error} />
-      {friends === null && <Loader label="Loading friends…" compact />}
-      {friends?.length === 0 && <p className="muted-small">No friends yet.</p>}
-      {friends?.map((f) => {
-        // The group's own member list is current (someone may have just been removed); the friends
-        // list is from when this opened.
-        const inGroup = group.members ? group.members.some((m) => m.id === f.id) : f.groupIds.includes(group.id);
-        return (
-          <div key={f.id} className="person-row">
-            <PersonButton person={f} groupId={inGroup ? group.id : f.groupIds[0]}>
-              <Avatar initials={f.initials} color={f.avatarColor} size={40} src={f.photoUrl} personId={f.id} />
-            </PersonButton>
-            <span className="person-row__name">{f.firstName} {f.lastName}</span>
-            {inGroup ? (
-              <span className="muted-small">In group</span>
-            ) : (
-              <button
-                type="button"
-                className="btn btn--sm btn--soft"
-                disabled={busy || full}
-                aria-label={`Add ${f.firstName} ${f.lastName}`}
-                onClick={() => add(f)}
-              >
-                Add
-              </button>
-            )}
-          </div>
-        );
-      })}
     </div>
   );
 }
