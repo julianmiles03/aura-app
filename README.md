@@ -84,14 +84,17 @@ The whole app as one process. People send in their profiles and group choices an
 
 ### Level 1: Core Workflows
 
-![Level 1 data flow diagram of aura's five core processes and its database, described below](docs/dfd-level-1.jpg)
+![Level 1 data flow diagram of aura's five core processes, its database and its two external entities, described below](docs/dfd-level-1.png)
 
-- **1.0 Set Up Profiles and Groups:** sign up, set up a profile, create or join a group.
-- **2.0 Rank Group Recommendations:** Find ranks other groups for your active group by shared interests, then mutual friends, then location.
-- **3.0 Record Connect or Pass:** every Connect or Pass is saved in `group_likes`.
-- **4.0 Create Match and Chat:** when both groups say Connect, aura saves the match and opens a group chat for both groups. Then it asks Gemini for three conversation starters, which are checked before they're saved.
-- **5.0 Exchange Chat Messages:** the group chat, with live updates.
+The diagram's source is [`docs/dfd-level-1.mmd`](docs/dfd-level-1.mmd) (Mermaid). To re-render it: `npx @mermaid-js/mermaid-cli@12.2.0 -i docs/dfd-level-1.mmd -o docs/dfd-level-1.png --scale 3 --backgroundColor white`.
+
+- **1.0 Set Up Profiles and Groups:** people send their sign-up, profile, photos, interests and group (or an invite code); it's saved to D1 and they get back their profile, group and its invite code.
+- **2.0 Rank Group Recommendations:** reads groups, shared interests, connections and past decisions from D1 and sends ranked group cards to Find, by shared interests, then mutual friends, then location.
+- **3.0 Record Connect or Pass:** takes each Connect or Pass from a user, saves it in `group_likes`, and checks D1 for the other group's earlier Connect. A mutual Connect goes on to 4.0.
+- **4.0 Create Match and Chat:** saves the match, its chat and both groups' members as participants. Then it reads both groups' names, cities and interests from D1, sends only those to Google's Gemini API, checks the raw starters that come back, and saves the ones that pass.
+- **5.0 Exchange Chat Messages:** takes messages, a chosen starter, typing and "We met up!" from users, saves them to D1, and sends new messages, read receipts, starters and typing back with live updates.
 - **D1 Aura Application Data:** our Postgres database on Supabase (see the [ERD](#erd)).
+- **External entities:** App Users / Friend Groups, and the Google Gemini API.
 
 ## ERD
 
@@ -704,7 +707,15 @@ The shared database needs the new column first: run `npm run db:migrate` (it run
 
 ## AI Conversation Starters
 
-When two groups match, an AI step writes three short conversation starters for their new chat, so nobody has to come up with the first message. This is the first slice of our AI workflow automation; the full workflow card is in the Sprint 3 backlog.
+This is aura's **AI workflow automation**. It runs on its own whenever two groups match, connects the app to an external service (Google's Gemini API) and has an AI step in the middle:
+
+1. **Trigger:** two groups both say Connect, and the match and its chat are saved.
+2. **AI step:** the server sends both groups' names, cities and interests to Gemini and asks for three conversation starters.
+3. **Check:** the answer is validated (rules below); anything that fails is thrown away.
+4. **Save and show:** the three starters are saved in `chat_suggestions` and appear in the new chat as "Need an opener?" chips, so nobody has to come up with the first message.
+5. **Track:** sending one marks it used (`used_at`), and the chips go away once both groups have talked, the same event KR3 counts.
+
+No one has to start it or approve it, and if Gemini is unavailable the match and chat still work.
 
 - **What happens on a match.** Once the match and its chat are saved, the server sends both groups' names, cities and interests, plus the interests they have in common, to Google's Gemini API and asks for three starters as structured JSON. It then checks the answer: exactly three, all different, one line each, 120 characters or fewer, no links, emoji removed. Only an answer that passes is saved, as three rows in `chat_suggestions` (`chat_id`, `text`, `used_at`). It isn't a pass-through: people never write the prompt, and nothing the model says reaches the app unchecked.
 - **"Need an opener?" chips.** A chat where the two groups haven't both said something yet shows the starters as chips above the message box. Tap one and it's in the message box, ready to edit or send. Sending it marks that starter used (`used_at`), and its chip goes away for everyone in the chat.

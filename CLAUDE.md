@@ -9,6 +9,7 @@ Machine-specific notes (paths, accounts, local setup) belong in `CLAUDE.local.md
 - `server/`: Node + Express 5 REST API. It talks to Postgres with `pg` only. Don't add the Supabase JS client.
 - `db/`: `schema.sql` (drops and recreates everything) and `seed.sql` (truncates, then inserts demo data).
 - `docs/`: ERD as `erd.dbml`, `erd.mmd` and `erd.png` (`npx @mermaid-js/mermaid-cli@12.2.0 -i docs/erd.mmd -o docs/erd.png --size 4800`, which reproduces the committed image's look and size).
+- `docs/dfd-level-1.mmd` is the Level 1 DFD embedded in the README; re-render `docs/dfd-level-1.png` with the command at the top of that file after changing a process or flow.
 - CI: `.github/workflows/ci.yml` runs `npm ci && npm run build` on every PR; merge only through PRs (README "How We Merge").
 - Hosting: Render, from `render.yaml` (API web service + static client). The client reads `VITE_API_URL` at build time; the API allows only `CORS_ORIGIN`. The static site also rewrites `/api/*` to the API (`routes` in `render.yaml`): the admin portal always calls its own site's `/api` so its session cookie is first-party (Safari drops cookies between the two `onrender.com` sites). Pushing to `main` redeploys.
 - Database: the shared Supabase project **Find Friends App**, reached through the Session pooler (port 5432). The connection string lives only in `server/.env`.
